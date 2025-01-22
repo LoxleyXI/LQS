@@ -1,0 +1,2356 @@
+-----------------------------------
+-- Loxley Quest System (LQS)
+-----------------------------------
+-- Copyright (c) 2025 LoxleyXI
+--
+-- https://github.com/LoxleyXI/LQS
+-----------------------------------
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+
+-- You should have received a copy of the GNU General Public License
+-- along with this program.  If not, see http://www.gnu.org/licenses/
+-----------------------------------
+local LQS = Module:new("LQS_Loxley_Quest_System")
+-----------------------------------
+LQS.settings =
+{
+    -- Respawn of spawners
+    RESPAWN = 180000, -- 3 minutes
+    DEBUG   = true,   -- Enable debugging mode
+}
+
+LQS.marker =
+{
+    SPARKLE  = 1382,
+    BLUE     = 2424,
+    FRAGMENT = 2357,
+    SHIMMER  = 2326,
+}
+
+LQS.MAIN_QUEST   = "MAIN_QUEST"
+LQS.SIDE_QUEST   = "SIDE_QUEST"
+LQS.NOTHING      = { { object = true }, "You see nothing out of the ordinary." }
+LQS.NOTHING_ELSE = { { object = true }, "There is nothing else to do here." }
+
+LQS.standardImmunities =
+{
+    xi.immunity.DARK_SLEEP,
+    xi.immunity.GRAVITY,
+    xi.immunity.LIGHT_SLEEP,
+    xi.immunity.PETRIFY,
+    xi.immunity.SILENCE,
+}
+
+-----------------------------------
+-- Dynamic Entity Looks
+-----------------------------------
+local decToLE = function(num)
+    local hex = string.format("%04x", num)
+    return string.sub(hex, 3, 4) .. string.sub(hex, 1, 2)
+end
+
+local modelSlot = { "head", "body", "hand", "legs", "feet", "main", "offh" }
+
+LQS.face =
+{
+    A1 = 0,
+    B1 = 1,
+    A2 = 2,
+    B2 = 3,
+    A3 = 4,
+    B3 = 5,
+    A4 = 6,
+    B4 = 7,
+    A5 = 8,
+    B5 = 9,
+    A6 = 10,
+    B6 = 11,
+    A7 = 12,
+    B7 = 13,
+    A8 = 14,
+    B8 = 15,
+}
+
+LQS.look = function(tbl)
+    local str = "00"  -- NPC or Mob
+
+    if tbl.face then
+        str = str .. string.format("%02x", tbl.face)
+    else
+        str = str .. "01"
+    end
+
+    if tbl.race then
+        str = str .. string.format("%02x", tbl.race)
+    else
+        str = str .. "01"
+    end
+
+    for k, v in pairs(modelSlot) do
+        if tbl[v] then
+            str = str .. decToLE(tbl[v])
+        else
+            str = str .. "0000"
+        end
+    end
+
+    str = str .. "0000" -- Ranged slot
+
+    return "0x01" .. string.upper(str)
+end
+
+-----------------------------------
+-- LQS.event
+-----------------------------------
+local processString = function(player, prefix, str, delay)
+    if str:sub(1, 1) == " " then
+        -- Paragraph continue
+        player:timer(delay, function(playerArg)
+            playerArg:fmt(str)
+        end)
+    else
+        -- New paragraph
+        player:timer(delay, function(playerArg)
+            playerArg:fmt(prefix .. str)
+        end)
+    end
+end
+
+local applyEntities = function(player, entityList, func)
+    local zone = player:getZone()
+
+    for i = 1, #entityList do
+        local entityName = entityList[i]
+        local deEntity   = string.gsub(entityName, "_", " ")
+        local result     = zone:queryEntitiesByName("DE_" .. deEntity)
+
+        for j = 1, #result do
+            func(result[j], player)
+        end
+    end
+end
+
+local getEntity = function(player, entityName)
+    local zone     = player:getZone()
+    local deEntity = string.gsub(entityName, "_", " ")
+    local result   = zone:queryEntitiesByName("DE_" .. deEntity)
+
+    return result[1]
+end
+
+-- TODO: Should this be kept for LQS?
+local scriptedEvent = function(player, entities, events)
+    local ents = {}
+
+    for i = 1, #entities do
+        ents[i] = getEntity(player, entities[i])
+        ents[i]:ceSpawn(player)
+    end
+
+    for i = 1, #events do
+        local event = events[i]
+        local delay = 5000 + i * 1000
+
+        player:timer(delay, function()
+            ents[event[1]]:entityAnimationPacket(event[2])
+        end)
+    end
+
+    return 6000 + #events * 1000
+end
+
+local processTable = function(player, prefix, row, delay)
+    -- Face
+    -- Turn entity to face target
+    if row.face ~= nil then
+        if row.entity == nil then
+            if npc then
+                npc:ceFace(player)
+            end
+        else
+            local entity = getEntity(player, row.entity)
+            if entity == nil then
+                return
+            end
+
+            if row.face == "player" then
+                entity:ceFace(player)
+            elseif type(row.face) == "number" then
+                entity:ceTurn(player, row.face)
+            else
+                local otherEntity = getEntity(player, row.face)
+                if otherEntity then
+                    entity:ceFaceNpc(player, otherEntity)
+                end
+            end
+        end
+
+    elseif row.removeEffect ~= nil then
+        if player:hasStatusEffect(row.removeEffect) then
+            player:delStatusEffect(row.removeEffect)
+        end
+
+    elseif row.charvar ~= nil then
+        player:setCharVar(row.charvar, row.value)
+
+    elseif row.costume ~= nil then
+        player:setCostume(row.costume)
+
+    elseif row.message ~= nil then
+        if type(row.message) == "table" then
+            if row.after ~= nil then
+                player:timer(row.after, function()
+                    for _, message in pairs(row.message) do
+                        player:sys(message)
+                    end
+                end)
+            else
+                for _, message in pairs(row.message) do
+                    player:sys(message)
+                end
+            end
+        else
+            player:sys(row.message)
+        end
+
+    elseif row.say ~= nil then
+        local result = row.say
+
+        if row.var ~= nil then
+            local value = player:getCharVar(row.var)
+            result = fmt(result, value)
+        end
+
+        player:fmt(result)
+
+    elseif row.emotion ~= nil then
+        player:printToPlayer(row.emotion, 8, row.name)
+
+    elseif row.special ~= nil then
+        player:messageSpecial(row.special)
+
+    elseif row.music ~= nil then
+        player:changeMusic(0, row.music)
+        player:changeMusic(1, row.music)
+
+    elseif row.pos ~= nil then
+        player:setPos(unpack(row.pos))
+
+    elseif
+        row.scripted_event ~= nil and
+        row.scripted_event.events ~= nil and
+        row.scripted_event.entities ~= nil
+    then
+        return scriptedEvent(player, row.scripted_event.entities, row.scripted_event.events)
+
+    -- NPC Animation Packet
+    -- Send an animation packet for the NPC
+    elseif
+        row.entity ~= nil and
+        row.packet ~= nil
+    then
+        local entity = getEntity(player, row.entity)
+
+        if row.target == nil then
+            entity:ceAnimationPacket(player, row.packet, entity)
+        else
+            local target = getEntity(player, row.entity)
+            entity:ceAnimationPacket(player, row.packet, target)
+        end
+
+    -- NPC Independent Animation Packet
+    -- Send an independent animation packet for the NPC
+    elseif
+        row.animate ~= nil
+    then
+        if row.entity ~= nil then
+            local entity = getEntity(player, row.entity)
+
+            if row.target == "player" then
+                entity:ceAnimate(player, player, row.animate, row.mode or 0)
+            else
+                entity:ceAnimate(player, entity, row.animate, row.mode or 0)
+            end
+        else
+            player:ceAnimate(player, player, row.animate, row.mode or 0)
+        end
+
+    -- Emote NPC
+    -- Sends an emote from the source NPC onto the target NPC or player
+    elseif row.emote  ~= nil then
+        if row.entity == "player" then
+            player:selfEmote(player, row.emote, xi.emoteMode.MOTION)
+
+        elseif row.entity ~= nil then
+            local entity = getEntity(player, row.entity)
+            entity:ceEmote(player, row.emote, xi.emoteMode.MOTION)
+
+        elseif npc ~= nil then
+            npc:ceEmote(player, row.emote, xi.emoteMode.MOTION)
+        end
+
+    -- Animation
+    -- Set an animation on the target
+    elseif row.animation ~= nil then
+        if row.target and row.target == "player" then
+            local anim = player:getAnimation()
+
+            player:setAnimation(row.animation)
+
+            player:timer(row.duration, function(player)
+                player:setAnimation(anim)
+            end)
+
+            return row.duration
+        end
+
+    -- Spawn Dynamic Entities
+    elseif row.spawn ~= nil then
+        applyEntities(player, row.spawn, function(entity, playerArg)
+            entity:ceSpawn(playerArg)
+        end)
+
+    -- Despawn Dynamic Entities
+    elseif row.despawn ~= nil then
+        applyEntities(player, row.despawn, function(entity, playerArg)
+            entity:ceDespawn(playerArg)
+        end)
+
+    -- Glimpse
+    -- Temporarily spawn NPCs then despawn after a short interval
+    elseif row.glimpse ~= nil then
+        applyEntities(player, row.glimpse[2], function(entity, playerArg)
+            entity:ceSpawn(playerArg)
+            entity:timer(row.glimpse[1], function(npcArg)
+                entity:ceDespawn(playerArg)
+            end)
+        end)
+    end
+end
+
+-- Returns the total delay for event
+LQS.eventDelay = function(tbl)
+    if not tbl or #tbl == 0 then
+        print(string.format("[LQS] Event table for %s missing or empty.", npcName))
+        return
+    end
+
+    local total = 0
+
+    for i = 1, #tbl do
+        local row = tbl[i]
+        local nextDelay = 1500
+
+        if row.delay ~= nil then
+            if row.skipDelayInternally then
+                nextDelay = 0
+            else
+                nextDelay = row.delay
+            end
+
+        elseif row.duration ~= nil then
+            nextDelay = row.duration
+
+        elseif row.move ~= nil then
+            nextDelay = 200 * #row.move
+
+        elseif row.scripted_event then
+            nextDelay = 5000 + 1000 * #row.scripted_event.events
+
+        elseif type(row) == "table" then
+            nextDelay = 0
+        end
+
+        total = total + nextDelay
+    end
+
+    return total
+end
+
+LQS.event = function(player, npc, tbl)
+    if
+        type(tbl) ~= "table" and
+        type(tbl) ~= "function"
+    then
+        print(fmt("[LQS] event must be a table or a function. {}, {}", npc, tbl))
+        return
+    end
+
+    if player:getLocalVar("[LQS]BLOCKING") == 1 then
+        return
+    end
+
+    -- Evaluate function instead of executing event
+    if type(tbl) == "function" then
+        tbl(player)
+        return
+    end
+
+    local prefix = ""
+
+    -- Objects should not have NPC names
+    if
+        npc ~= nil and
+        tbl[1].noturn == nil and
+        tbl[1].object == nil
+    then
+        npc:ceFace(player)
+
+        prefix = string.format("%s : ", npc:getPacketName())
+        player:setLocalVar("[LQS]BLOCKING", 1)
+    end
+
+    if not tbl or #tbl == 0 then
+        print(string.format("[LQS] Event table for (%s) missing or empty.", prefix))
+        return
+    end
+
+    if #tbl == 1 then
+        if type(tbl[1]) == "table" then
+            processTable(player, npc, prefix, tbl[1], 0)
+        else
+            player:fmt(prefix .. tbl[1])
+        end
+
+        -- Reset NPC position after single line dialog
+        if npc then
+            player:timer(3000, function(playerArg)
+                npc:ceReset(player)
+                player:setLocalVar("[LQS]BLOCKING", 0)
+            end)
+        end
+
+        return
+    end
+
+    local delay = 0
+
+    for i = 1, #tbl do
+        local row = tbl[i]
+        local nextDelay = 1500
+
+        if type(row) == "function" then
+            -- Delayed function
+            player:timer(delay, tbl[i])
+
+        elseif type(row) == "string" then
+            processString(player, prefix, row, delay)
+
+        -- Process tables
+        else
+            player:timer(delay, function(playerArg)
+                processTable(player, npc,prefix, row, delay)
+            end)
+
+            if row.delay ~= nil then
+                nextDelay = row.delay
+
+            elseif row.duration ~= nil then
+                nextDelay = row.duration
+
+            elseif row.scripted_event ~= nil then
+                nextDelay = 5000 + 1000 * #row.scripted_event.events
+
+            else
+                nextDelay = 0
+            end
+        end
+
+        delay = delay + nextDelay
+    end
+
+    if npc then
+        player:timer(delay + 3000, function(playerArg)
+            npc:ceReset(player)
+            player:setLocalVar("[LQS]BLOCKING", 0)
+        end)
+    end
+end
+
+-----------------------------------
+-- Quest tracker
+-----------------------------------
+LQS.newMission = function(player, missionName)
+    player:sys("\129\158 New Mission: {}", missionName)
+end
+
+LQS.questAccepted = function(player, questName, isMission)
+    local text = "\129\158 Quest Accepted: {}"
+
+    if isMission then
+        text = "\129\158 Mission Accepted: {}"
+    end
+
+    player:sys(text, questName)
+end
+
+LQS.questCompleted = function(player, questName, music, isMission)
+    local text = "\129\159 Quest Completed: {}"
+
+    if isMission then
+        text = "\129\159 Mission Completed: {}"
+    end
+
+    player:sys(text, questName)
+
+    player:changeMusic(0, 67)
+    player:changeMusic(1, 67)
+
+    player:timer(5000, function(playerArg)
+        player:changeMusic(0, music or 0)
+        player:changeMusic(1, music or 0)
+    end)
+end
+
+-----------------------------------
+-- Core utils
+-----------------------------------
+local function delaySendMenu(player, menu)
+    player:timer(300, function(playerArg)
+        playerArg:customMenu(menu)
+    end)
+end
+
+local function pickItem(items, mod)
+    -- sum weights
+    local sum = 0
+    for i = 1, #items do
+        if
+            mod ~= nil and
+            type(items[i][1]) == "table"
+        then
+            sum = sum + items[i][1][mod]
+        else
+            sum = sum + items[i][1]
+        end
+    end
+
+    -- pick weighted result
+    local item = items[1]
+    local pick = math.random(1, sum)
+    sum = 0
+
+    for i = 1, #items do
+        if
+            mod ~= nil and
+            type(items[i][1]) == "table"
+        then
+            sum = sum + items[i][1][mod]
+        else
+            sum = sum + items[i][1]
+        end
+
+        if sum >= pick then
+            item = items[i]
+            break
+        end
+    end
+
+    return item
+end
+
+-----------------------------------
+-- Entity utils
+-----------------------------------
+local function getEntity(player, entityName)
+    local zone     = player:getZone()
+    local result   = zone:queryEntitiesByName("DE_" .. entityName)
+
+    return result[1]
+end
+
+local function getEntityInfo(entities, entityName)
+    local entityInfo = nil
+
+    for _, entity in pairs(entities) do
+        if entity.name == entityName then
+            entityInfo = entity
+        end
+    end
+
+    if entityInfo == nil then
+        print(string.format("[LQS] Unable to match mob %s with quest entities", entityName))
+    end
+
+    return entityInfo
+end
+
+local function hideNPC(npc)
+    npc:setStatus(xi.status.INVISIBLE)
+
+    npc:timer(LQS.settings.RESPAWN, function(npcArg)
+        npcArg:setStatus(xi.status.NORMAL)
+    end)
+end
+
+-----------------------------------
+-- Reward utils
+-----------------------------------
+local function giveReward(player, reward)
+    if
+        type(reward) == "number" or
+        type(reward[1]) == "table"
+    then
+        return npcUtil.giveItem(player, reward)
+    end
+
+    if reward.item ~= nil then
+        if reward.augment ~= nil then
+            local ID = zones[player:getZoneID()]
+
+            if player:getFreeSlotsCount() > 0 then
+                player:addItem(reward.item, 1, unpack(reward.augment))
+                player:messageSpecial(ID.text.ITEM_OBTAINED, reward.item)
+            else
+                player:messageSpecial(ID.text.ITEM_CANNOT_BE_OBTAINED, reward.item)
+                return false
+            end
+        elseif not npcUtil.giveItem(player, reward.item) then
+            return false
+        end
+    end
+
+    if reward.exp ~= nil then
+        player:addExp(reward.exp)
+    end
+
+    if reward.currency ~= nil then
+        npcUtil.giveCurrency(player, reward.currency[1], reward.currency[2])
+    end
+
+    if reward.gil ~= nil then
+        npcUtil.giveCurrency(player, "gil", reward.gil)
+    end
+
+    if reward.keyitem ~= nil then
+        if type(reward.keyitem) == "table" then
+            for _, keyItem in pairs(reward.keyitem) do
+                npcUtil.giveKeyItem(player, keyItem)
+            end
+        else
+            npcUtil.giveKeyItem(player, reward.keyitem)
+        end
+    end
+
+    return true
+end
+
+-----------------------------------
+-- LQS.checks
+-----------------------------------
+local checkList =
+{
+    -- TODO: Need a way to add custom checks instead
+    --[[
+    cw = function(player, val)
+        return player:isCrystalWarrior() == val
+    end,
+
+    ucw = function(player, val)
+        return player:isUnbreakable() == val
+    end,
+
+    wew = function(player, val)
+        return player:isClassicMode() == val
+    end,
+
+    era = function(player, val)
+        return player:isCrystalWarrior() or player:isClassicMode()
+    end,
+    ]]
+
+    gm = function(player, val)
+        return (player:getGMLevel() > 0) == val
+    end,
+
+    level = function(player, val)
+        return player:getMainLvl() >= val
+    end,
+
+    job  = function(player, val)
+        return player:getMainJob() == val
+    end,
+
+    jobvar = function(player, var)
+        return player:getMainJob() == player:getCharVar(var)
+    end,
+
+    vareq = function(player, val)
+        return player:getCharVar(val[1]) == val[2]
+    end,
+
+    varin = function(player, tbl)
+        local val = player:getCharVar(tbl[1])
+
+        for _, varVal in pairs(tbl[2]) do
+            if val == varVal then
+                return true
+            end
+        end
+
+        return false
+    end,
+
+    vargt = function(player, val)
+        return player:getCharVar(val[1]) > val[2]
+    end,
+
+    varlt = function(player, val)
+        return player:getCharVar(val[1]) < val[2]
+    end,
+
+    varlist = function(player, val)
+        for _, varInfo in pairs(val) do
+            if player:getCharVar(varInfo[1]) < varInfo[2] then
+                return false
+            end
+        end
+
+        return true
+    end,
+
+    zero = function(player, variable)
+        return player:getCharVar(variable) == 0
+    end,
+
+    allzero = function(player, variable)
+        local zoneID   = player:getZoneID()
+        local alliance = player:getAlliance()
+
+        for _, member in pairs(alliance) do
+            if
+                member ~= nil and
+                member:isPC() and
+                member:getZoneID() == zoneID
+            then
+                if member:getCharVar(variable) ~= 0 then
+                    return false
+                end
+            end
+        end
+
+        return true
+    end,
+
+    timeout = function(player, variable)
+        return os.time() < player:getCharVar(variable)
+    end,
+
+    cooldown = function(player, variable)
+        return os.time() > player:getCharVar(variable)
+    end,
+
+    bool = function(player, val)
+        return val
+    end,
+
+    item = function(player, item)
+        return player:hasItem(item)
+    end,
+}
+
+LQS.checks = function(tbl)
+    return function(player)
+        local pass = true
+
+        for k, v in pairs(tbl) do
+            if not checkList[string.lower(k)](player, v) then
+                pass = false
+            end
+        end
+
+        return pass
+    end
+end
+
+-----------------------------------
+-- LQS.dialog
+-----------------------------------
+LQS.dialog = function(obj)
+    return function(player, npc, tbl, var, step)
+        -----------------------------------
+        -- Player does not meet requirements
+        -- Show default dialog or "fail" dialog
+        -----------------------------------
+        if
+            obj.check ~= nil and
+            not LQS.checks(obj.check)(player)
+        then
+            if obj.fail ~= nil then
+                LQS.event(player, npc, obj.fail)
+            else
+                LQS.event(player, npc, tbl.dialog.DEFAULT)
+            end
+
+            return
+        end
+
+        -----------------------------------
+        -- Setup conditional dialog events
+        -----------------------------------
+        local event = obj.event
+
+        if obj.conditionalDialog ~= nil then
+            event = conditional[obj.conditionalDialog](player, obj.event)
+        end
+
+        if obj.name == "" then
+            LQS.event(player, nil, event)
+        else
+            LQS.event(player, npc, event)
+        end
+
+        -- If not a step, stop here
+        -- eg. Hint/Reminder dialog
+        if
+            obj.step ~= nil and
+            not obj.step
+        then
+            return
+        end
+
+        -----------------------------------
+        -- Prevent spamming events with local var
+        -----------------------------------
+        local delay = LQS.eventDelay(event)
+        player:setLocalVar("[LQS]REWARD", 1)
+
+        player:timer(delay, function(playerArg)
+            -----------------------------------
+            -- No reward, give Quest/Mission accepted message
+            -----------------------------------
+            if obj.reward == nil then
+                player:setCharVar(var, step)
+
+                if obj.quest ~= nil then
+                    LQS.questAccepted(player, obj.quest, false)
+                elseif obj.mission ~= nil then
+                    LQS.newMission(player, obj.mission)
+                end
+
+                player:setLocalVar("[LQS]REWARD", 0)
+                return
+            end
+
+            -----------------------------------
+            -- Setup conditional rewards
+            -----------------------------------
+            local reward = obj.reward
+
+            if obj.conditionalReward ~= nil then
+                reward = conditional[obj.conditionalReward](player, obj.reward)
+            end
+
+            -----------------------------------
+            -- Reward handling
+            -----------------------------------
+            if giveReward(player, reward) then
+                -- If the reward was succesfully given, advance the step
+                player:setCharVar(var, step)
+
+                -- If not explicitly beginQuest, assume Quest/Mission complete
+                if obj.beginQuest ~= nil then
+                    LQS.questAccepted(player, obj.beginQuest)
+                elseif obj.quest ~= nil then
+                    LQS.questCompleted(player, obj.quest, obj.music, false)
+                elseif obj.mission ~= nil then
+                    LQS.newMission(player, obj.mission)
+                end
+
+                -- Call optional after function
+                -- Older quest style
+                if
+                    type(reward) == "table" and
+                    reward.after ~= nil
+                then
+                    reward.after(player)
+                end
+
+                -- Newer quest style
+                if obj.after ~= nil then
+                    obj.after(player)
+                end
+
+                -----------------------------------
+                -- Clear locking var
+                -----------------------------------
+                player:setLocalVar("[LQS]REWARD", 0)
+                return true
+            else
+                player:setLocalVar("[LQS]REWARD", 0)
+                return false
+            end
+        end)
+    end
+end
+
+-----------------------------------
+-- LQS.trade
+-----------------------------------
+local function performTrade(obj, player, var, count, increment, items, multiple)
+    if
+        (obj.reward == nil and items == nil) or
+        (type(obj.reward) == "table" and obj.reward.item ~= nil and giveReward(player, obj.reward)) or
+        npcUtil.giveItem(player, items or obj.reward, { multiple = multiple })
+    then
+        player:tradeComplete()
+
+        if
+            obj.step == nil or
+            obj.step
+        then
+            player:incrementCharVar(var, increment or 1)
+        end
+
+        if obj.reward ~= nil then
+            giveAfter(player, obj.reward)
+        end
+
+        if obj.quest ~= nil then
+            LQS.questCompleted(player, obj.quest, obj.music, false)
+        elseif obj.mission ~= nil then
+            LQS.newMission(player, obj.mission)
+        end
+
+        if obj.tally ~= nil then
+            player:incrementCharVar(obj.tally, count)
+        end
+
+        player:setLocalVar("[LQS]REWARD", 0)
+    else
+        player:tradeRelease()
+    end
+end
+
+LQS.trade = function(obj)
+    return function(player, npc, trade, entity, var, step)
+        if player:getLocalVar("[LQS]REWARD") == 1 then
+            return
+        end
+
+        if obj.list ~= nil then
+            for _, tradeInfo in pairs(obj.list) do
+                if npcUtil.tradeHasExactly(trade, tradeInfo.required) then
+                    player:setLocalVar("[LQS]REWARD", 1)
+                    local delay = LQS.eventDelay(tradeInfo.accepted)
+                    LQS.event(player, npc, tradeInfo.accepted)
+
+                    player:timer(delay, function(playerArg)
+                        performTrade(obj, player, var, nil, tradeInfo.increment)
+                    end)
+
+                    return
+                end
+            end
+
+        -- TODO: Refactor and make this more sensible
+        elseif obj.exchange ~= nil then
+            local totalQtyTraded = 0
+
+            for i = 0, trade:getSlotCount()-1 do
+                local itemID = trade:getItemId(i)
+
+                if
+                    (obj.exchange[itemID] == nil and
+                    obj.sellrate == nil) or
+                    (obj.exclude ~= nil and obj.exclude[itemID])
+                then
+                    LQS.event(player, npc, obj.declined)
+                    return
+                end
+
+                totalQtyTraded = totalQtyTraded + trade:getSlotQty(i)
+            end
+
+            if obj.sellrate == nil then
+                if player:getFreeSlotsCount() < totalQtyTraded then
+                    player:sys("You don't have enough inventory space.")
+                    return
+                end
+            end
+
+            player:setLocalVar("[LQS]REWARD", 1)
+
+            local delay = LQS.eventDelay(obj.accepted)
+            LQS.event(player, npc, obj.accepted)
+
+            player:timer(delay, function(playerArg)
+                local givenGil = 0
+                local results  = {}
+
+                for i = 0, trade:getSlotCount()-1 do
+                    local slotID   = trade:getItemId(i)
+                    local slotQty  = trade:getSlotQty(i)
+
+                    for j = 1, slotQty do
+                        if
+                            obj.exchange[slotID] == nil and
+                            obj.sellrate ~= nil
+                        then
+                            local item  = GetItemByID(slotID)
+                            local value = item:getBasePrice()
+
+                            if value == 0 then
+                                value = 1
+                            end
+
+                            local total = math.floor(value * obj.sellrate) + 1
+                            local flags = item:getFlag()
+
+                            -- Ex items are worth an extra 10g
+                            if bit.band(item:getFlag(), xi.itemFlag.EX) ~= 0 then
+                                total = total + 10
+                            end
+
+                            -- Rare items are worth an extra 50g
+                            if bit.band(item:getFlag(), xi.itemFlag.RARE) ~= 0 then
+                                total = total + 50
+                            end
+
+                            givenGil = givenGil + total
+                        else
+                            local exchangeList = obj.exchange[slotID]
+
+                            -- Allow the item table to be filtered by a conditional function
+                            if obj.conditional ~= nil then
+                                exchangeList = obj.conditional(player, obj.exchange[slotID])
+                            end
+
+                            local result  = LQS.pickItem(exchangeList)
+                            local givenID = result[2]
+
+                            if type(givenID) == "table" then
+                                if givenID.gil ~= nil then
+                                    givenGil = givenGil + givenID.gil
+                                end
+                            else
+                                local givenQty = 1
+
+                                if
+                                    result[4] ~= nil and
+                                    type(result[4]) == "table"
+                                then
+                                    givenQty = math.random(result[4][1], result[4][2])
+                                end
+
+                                results[givenID] = (results[givenID] or 0) + givenQty
+                            end
+                        end
+                    end
+                end
+
+                local items = {}
+
+                for itemID, itemQty in pairs(results) do
+                    -- This will preventing locking the trade container when it fails to give an item
+                    if player:canObtainItem(itemID) then
+                        table.insert(items, { itemID, itemQty })
+                    elseif
+                        -- if the exchange defines a replcement for this itemid if it's unobtainable (player already has)
+                        obj.replacements ~= nil and
+                        obj.replacements[itemID]
+                    then
+                        table.insert(items, obj.replacements[itemID])
+                    else
+                        -- otherwise just replace it with a cluster, everyone loves clusters
+                        local clusters =
+                        {
+                            xi.item.FIRE_CLUSTER,
+                            xi.item.ICE_CLUSTER,
+                            xi.item.WIND_CLUSTER,
+                            xi.item.EARTH_CLUSTER,
+                            xi.item.LIGHTNING_CLUSTER,
+                            xi.item.WATER_CLUSTER,
+                            xi.item.LIGHT_CLUSTER,
+                            xi.item.DARK_CLUSTER,
+                        }
+                        table.insert(items, clusters[math.random(#clusters)])
+                    end
+                end
+
+                performTrade(obj, player, var, totalQtyTraded, nil, items, true)
+
+                if givenGil > 0 then
+                    npcUtil.giveCurrency(player, "gil", givenGil)
+
+                    if obj.points ~= nil then
+                        local givenPts = math.floor(givenGil / 10) + 1
+                        player:incrementCharVar(obj.points.var, givenPts)
+                        player:sys("{} gains {} {}.", player:getName(), givenPts, obj.points.name)
+                    end
+                end
+            end)
+
+            return
+        else
+            local count = trade:getItemCount()
+            local total = count
+
+            if obj.tally ~= nil then
+                total = total + player:getCharVar(obj.tally)
+            end
+
+            if
+                (obj.tally ~= nil and npcUtil.tradeHas(trade, { { obj.required, count } }, false)) or
+                npcUtil.tradeHasExactly(trade, obj.required)
+            then
+                player:setLocalVar("[LQS]REWARD", 1)
+                local delay = LQS.eventDelay(obj.accepted)
+
+                LQS.event(player, npc, obj.accepted)
+
+                -- TODO: ?
+                -- LQS.event(player, obj.accepted, obj.name, { [1] = count, [2] = total, npc = npc })
+
+                player:timer(delay, function(playerArg)
+                    performTrade(obj, player, var, count)
+                end)
+
+                return
+            end
+        end
+
+        LQS.event(player, npc, obj.declined)
+    end
+end
+
+-----------------------------------
+-- LQS.menu
+-----------------------------------
+local function setEncounter(entity, params)
+    local flags = xi.effectFlag.DEATH + xi.effectFlag.ON_ZONE
+
+    if params.raiseAllowed ~= nil then
+        flags = xi.effectFlag.ON_ZONE
+    end
+
+    entity:addStatusEffectEx(
+        xi.effect.LEVEL_RESTRICTION,
+        xi.effect.LEVEL_RESTRICTION,
+        params.levelCap,
+        0,
+        0,
+        0,
+        0,
+        0,
+        flags + xi.effectFlag.CONFRONTATION
+    )
+
+    if params.subjob ~= nil and params.subjob == false then
+        entity:addStatusEffectEx(
+            xi.effect.SJ_RESTRICTION,
+            xi.effect.SJ_RESTRICTION,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            flags
+        )
+    end
+end
+
+local levelCaps =
+{
+    16, -- Promyvion - Holla
+    18, -- Promyvion - Dem
+    20, -- Promyvion - Mea
+    22, -- Promyvion-Vahzl
+    28, -- Sacrarium
+    29, -- Riverne Site B01
+    30, -- Riverne Site A01
+}
+
+local function isLevelCappedZone(zoneID)
+    for k, v in pairs(levelCaps) do
+        if v == zoneID then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function removeLevelCap(player)
+    local zoneID   = player:getZoneID()
+
+    -- Prevent removing level restriction inside intentionally capped areas
+    if isLevelCappedZone(zoneID) then
+        return
+    end
+
+    local alliance = player:getAlliance()
+
+    for i = 1, #alliance do
+        if alliance[i]:getZoneID() == zoneID then
+            alliance[i]:delStatusEffect(xi.effect.LEVEL_RESTRICTION)
+
+            local pet = alliance[i]:getPet()
+
+            if pet ~= nil then
+                pet:delStatusEffect(xi.effect.LEVEL_RESTRICTION)
+            end
+        end
+    end
+end
+
+local function allPlayers(player, func)
+    local zoneID   = player:getZoneID()
+    local alliance = player:getAlliance()
+
+    for i = 1, #alliance do
+        if
+            alliance[i]:isPC() and
+            alliance[i]:getZoneID() == zoneID
+        then
+            func(alliance[i])
+        end
+    end
+end
+
+local function applyLevelCap(player, params)
+    if
+        params ~= nil and
+        params.levelCap ~= nil
+    then
+        local zoneID   = player:getZoneID()
+        local alliance = player:getAlliance()
+
+        for i = 1, #alliance do
+            if alliance[i]:getZoneID() == zoneID then
+                setEncounter(alliance[i], params)
+
+                local pet = alliance[i]:getPet()
+
+                if pet ~= nil then
+                    setEncounter(pet, params)
+                end
+            end
+        end
+    end
+end
+
+local function spawnMob(player, npc, entities, mobName, params)
+    local zone     = player:getZone()
+    local zoneName = player:getZoneName()
+    local mobInfo  = getEntityInfo(entities[zoneName], mobName)
+    local result   = zone:queryEntitiesByName("DE_" .. mobName)
+
+    for _, mob in pairs(result) do
+        if mob ~= nil and not mob:isAlive() then
+            if
+                params ~= nil and
+                params.setPos ~= nil
+            then
+                mob:setSpawn(params.setPos.x, params.setPos.y, params.setPos.z, params.setPos.rotation)
+            else
+                mob:setSpawn(mobInfo.pos[1], mobInfo.pos[2], mobInfo.pos[3], mobInfo.pos[4])
+            end
+
+            if mobInfo.dropID then
+                mob:setDropID(mobInfo.dropID)
+            else
+                mob:setDropID(0)
+            end
+
+            local spawnLevel = mobInfo.level
+
+            if
+                params ~= nil and
+                params.scaleVar ~= nil
+            then
+                local scaling = player:getCharVar(params.scaleVar)
+                spawnLevel    = spawnLevel + scaling
+            end
+
+            mob:spawn()
+            mob:setMobLevel(spawnLevel)
+            mob:updateClaim(player)
+            mob:setLocalVar("NO_CASKET", 1)
+
+
+            -- Apply enmity to party, preventing despawn on spawner death
+            local alliance = player:getAlliance()
+
+            if
+                alliance ~= nil and
+                #alliance > 1
+            then
+                for _, member in pairs(alliance) do
+                    mob:addEnmity(member, 1, 0)
+                end
+            end
+
+            -- Quest mobs should not respawn
+            mob:setRespawnTime(0)
+            DisallowRespawn(mob:getID(), true)
+
+            if mobInfo.mods ~= nil then
+                for mod, value in pairs(mobInfo.mods) do
+                    mob:setMod(mod, value)
+                end
+            end
+
+            if mobInfo.effects ~= nil then
+                for effectID, effectTable in pairs(mobInfo.effects) do
+                    mob:addStatusEffect(effectID, unpack(effectTable))
+                end
+            end
+
+            -- Correct HP value based on mob params
+            mob:setHP(mob:getMaxHP())
+            mob:updateHealth()
+
+            if mobInfo.hp ~= nil then
+                local mobHP = mob:getMaxHP()
+                local hpp   = math.max(math.ceil((mobInfo.hp / mobHP) * 100) - 100, 0)
+                mob:addMod(xi.mod.HPP, hpp)
+                mob:updateHealth()
+                mob:setHP(mob:getMaxHP())
+            end
+
+            if params ~= nil then
+                if params.levelCap ~= nil then
+                    -- Draw-In was moved to Lua mixin:
+                    -- https://github.com/LandSandBoat/server/pull/6566
+                    g_mixins.draw_in(mob)
+                    setEncounter(mob, params)
+                end
+
+                if params.nextPos ~= nil then
+                    local pos = params.nextPos[math.random(1, #params.nextPos)]
+                    npc:setPos(unpack(pos))
+                end
+            end
+        end
+    end
+end
+
+local function mobsAlive(player, mobName)
+    local zone   = player:getZone()
+    local result = zone:queryEntitiesByName("DE_" .. mobName)
+
+    for _, mob in pairs(result) do
+        if
+            mob ~= nil and
+            mob:isAlive()
+        then
+            player:sys("An encounter is already in progress.")
+            return true
+        end
+    end
+
+    return false
+end
+
+local function delaySpawn(player, npc, delay, mobs, entities, hideSpawner, params)
+    if type(mobs) == "table" then
+        for _, mobName in pairs(mobs) do
+            if mobsAlive(player, mobName) then
+                return false
+            end
+        end
+    else
+        if mobsAlive(player, mobs) then
+            return false
+        end
+    end
+
+    -- TODO: Can these be moved to checks?
+    if params ~= nil then
+        if
+            params.partySize ~= nil and
+            player:getPartySize() > params.partySize
+        then
+            player:sys("Your party is too large to begin this encounter.")
+            return false
+        end
+
+        if
+            params.job ~= nil and
+            player:getMainJob() ~= params.job
+        then
+            player:sys("Your job is incorrect for this encounter.")
+            return false
+        end
+    end
+
+    -- Only skip this if hideSpawner is false
+    if
+        ((params == nil or params.nextPos == nil) and
+        hideSpawner == nil) or
+        hideSpawner
+    then
+        hideNPC(npc)
+    end
+
+    applyLevelCap(player, params)
+
+    npc:timer(delay, function(npcArg)
+        if type(mobs) == "table" then
+            for _, mobName in pairs(mobs) do
+                spawnMob(player, npc, entities, mobName, params)
+            end
+        else
+            spawnMob(player, npc, entities, mobs, params)
+        end
+    end)
+
+    return true
+end
+
+LQS.menu = function(obj)
+    return function(player, npc, tbl, var, step, entities)
+        -- Prevent players opening menu while in dialog
+        if player:getLocalVar("[LQS]BLOCKING") == 1 then
+            return
+        end
+
+        if
+            obj.check ~= nil and
+            not obj.check(player)
+        then
+            if obj.declined ~= nil then
+                LQS.event(player, npc, obj.declined)
+            else
+                if obj.default == nil then
+                    printf("[LQS] Default event does not exist for (%s)", npc:getPacketName())
+                    return
+                end
+
+                if
+                    obj.default.condition ~= nil and
+                    player:getCharVar(obj.default.condition[1]) == obj.default.condition[2]
+                then
+                    LQS.event(player, npc, obj.default.dialog)
+                else
+                    if type(obj.default) == "table" then
+                        LQS.event(player, npc, obj.default)
+                    else
+                        LQS.event(player, npc, { obj.default })
+                    end
+                end
+            end
+
+            return
+        end
+
+        local options = {}
+        local i = 1
+
+        for i = 1, #obj.options do
+            table.insert(options, {
+                obj.options[i][1],
+                function()
+                    if obj.options[i][2] ~= nil then
+                        if type(obj.options[i][2]) == "boolean" then
+                            if obj.spawn ~= nil then
+                                if obj.flag ~= nil then
+                                    player:setLocalVar(obj.flag, 1)
+                                end
+
+                                local mobs = obj.spawn
+
+                                if obj.spawn.hq ~= nil then
+                                    mobs = { obj.spawn.nq }
+
+                                    if math.random(0, 100) < obj.spawn.rate then
+                                        mobs = { obj.spawn.hq }
+                                    end
+                                end
+
+                                for _, mobName in pairs(mobs) do
+                                    if delaySpawn(player, npc, 0, mobs, entities, true, {
+                                        setPos       = npc:getPos(),
+                                        nextPos      = obj.nextPos,
+                                        levelCap     = obj.levelCap,
+                                        raiseAllowed = obj.raiseAllowed,
+                                        partySize    = obj.partySize,
+                                        scaleVar     = obj.scaleVar,
+                                    }) then
+                                        if obj.setVar ~= nil then
+                                            for _, varInfo in pairs(obj.setVar) do
+                                                player:setCharVar(varInfo[1], varInfo[2])
+                                            end
+                                        end
+                                    end
+
+                                    if obj.setVarAll ~= nil then
+                                        allPlayers(player, function(member)
+                                            member:setCharVar(obj.setVarAll[1], obj.setVarAll[2])
+                                        end)
+                                    end
+                                end
+                            end
+
+                            return
+                        end
+
+                        local delay = LQS.eventDelay(obj.options[i][2])
+                        LQS.event(player, npc, obj.options[i][2])
+
+                        if obj.options[3] ~= nil then
+                            if player:getLocalVar("[LQS]REWARD") == 1 then
+                                return
+                            end
+
+                            player:setLocalVar("[LQS]REWARD", 1)
+                        end
+
+                        npc:timer(delay, function(playerArg)
+                            -- Optionally give item after dialog
+                            if obj.options[i][3] ~= nil then
+                                if npcUtil.giveItem(player, obj.options[3]) then
+                                    player:setCharVar(var, step)
+
+                                    if obj.quest ~= nil then
+                                        LQS.questAccepted(player, obj.quest, false)
+                                    elseif obj.mission ~= nil then
+                                        LQS.newMission(player, obj.mission)
+                                    end
+                                end
+                            else
+                                player:setCharVar(var, step)
+
+                                if obj.quest ~= nil then
+                                    if obj.finish ~= nil then
+                                        LQS.questCompleted(player, obj.quest, obj.music, false)
+                                    else
+                                        LQS.questAccepted(player, obj.quest, false)
+                                    end
+                                elseif obj.mission ~= nil then
+                                   LQS.newMission(player, obj.mission)
+                                end
+                            end
+
+                            player:setLocalVar("[LQS]REWARD", 0)
+                        end)
+                    end
+                end,
+            })
+        end
+
+        player:customMenu({
+            title   = obj.title,
+            options = options,
+        })
+    end
+end
+
+-----------------------------------
+-- LQS.shop
+-----------------------------------
+local function simpleShop(player, npc, tbl, func, title, currentPage, param)
+    local options  = {}
+    local max      = 1
+    local lastPage = math.floor((#tbl - 1) / 4)
+    local page     = currentPage
+
+    if currentPage == nil then
+        page = 0
+    end
+
+    if page > 0 then
+        table.insert(options, {
+            "(Prev)",
+            function(player)
+                simpleShop(player, npc, tbl, func, title, page - 1, param)
+            end,
+        })
+    end
+
+    for i = 1, 4 do
+        local item  = tbl[page * 4 + i]
+        local block = false
+
+        if
+            param ~= nil and
+            param.milestone ~= nil
+        then
+            local milestoneVal = player:getCharVar(param.milestone)
+
+            if utils.mask.getBit(milestoneVal, page * 4 + i) then
+                block = true
+            end
+        end
+
+        if item ~= nil then
+            local itemName = item[1]
+            local itemCost = item[3]
+            local label    = itemName
+
+            if itemCost > 0 then
+                if block then
+                    label = string.format("-Claimed- (%u)", itemCost)
+                else
+                    label = string.format("%s (%u)", label, itemCost)
+                end
+            end
+
+            table.insert(options, {
+                label,
+                function(playerArg)
+                    if not block then
+                        func(player, npc, item, param)
+                    end
+                end
+            })
+
+            max = page * 4 + i
+        end
+    end
+
+    if max < #tbl then
+        table.insert(options, {
+            "(Next)",
+            function(player)
+                simpleShop(player, npc, tbl, func, title, page + 1, param)
+            end,
+        })
+    end
+
+    delaySendMenu(player, {
+        title   = title,
+        options = options,
+    })
+end
+
+LQS.purchaseItem = function(player, npc, item, obj)
+    local balance  = player:getCharVar(obj.var)
+
+    if item[3] > balance then
+        player:sys("You can't afford this purchase.")
+        return
+    end
+
+    delaySendMenu(player, {
+        title   = fmt("Buy {} ({})?", item[1], item[3]),
+        options =
+        {
+            {
+                "No",
+                function()
+                end,
+            },
+            {
+                "Yes",
+                function()
+                    if type(item[2]) == "string" then
+                        player:setCharVar(item[2], 1)
+                        player:sys(item[4])
+                        player:incrementCharVar(obj.var, -item[3])
+                    else
+                        if npcUtil.giveItem(player, item[2]) then
+                            npc:facePlayer(player, true)
+                            player:incrementCharVar(obj.var, -item[3])
+                        end
+                    end
+                end,
+            },
+        },
+    })
+end
+
+LQS.shop = function(obj)
+    return function(player, npc, tbl, var, step)
+        local balance  = player:getCharVar(obj.var)
+        local purchase = function(player, npc, item)
+            LQS.purchaseItem(player, npc, item, obj)
+        end
+
+        if obj.dialog ~= nil then
+            LQS.event(player, nil, obj.dialog)
+        end
+
+        local list = {}
+
+        for _, item in pairs(obj.list) do
+            if type(item[2]) == "string" then
+                if player:getCharVar(item[2]) == 0 then
+                    table.insert(list, item)
+                end
+            else
+                table.insert(list, item)
+            end
+        end
+
+        simpleShop(player, npc, list, purchase, fmt(obj.title, balance))
+    end
+end
+
+-----------------------------------
+-- LQS.defeat
+-----------------------------------
+local function awardGive(player, var, reward)
+    local var = string.format("[HELPER]%s", string.upper(var))
+
+    -- Make sure player can't claim reward more than once every 24 hours
+    if player:getCharVar(var) == 0 then
+        print(string.format("[HELPER] %s has claimed a reward for helping with %s.", player:getName(), var))
+        player:setCharVar(var, 1, getMidnight())
+
+        -- Increment var for helper points and leaderboards
+        player:incrementCharVar("[HELPER]POINTS", 1)
+
+        -- If player's inventory is full, increment var to receive later
+        if not npcUtil.giveItem(player, reward) then
+            player:incrementCharVar("[HELPER]EXP_SCROLL", 1)
+        end
+    end
+end
+
+LQS.defeat = function(params)
+    return function(mob, player, entity, var, step, entities, check)
+        if mob:getLocalVar("KILLED") == 1 then
+            return
+        end
+
+        mob:setLocalVar("KILLED", 1)
+
+        if params.mobs ~= nil then
+            for _, mobName in pairs(params.mobs) do
+                local ent = getEntity(player, mobName)
+
+                if ent:isAlive() then
+                    return false
+                end
+            end
+        end
+
+        local nextStep = step
+
+        if resetStep ~= nil then
+            nextStep = 0
+        end
+
+        -- Increment player quest step
+        allPlayers(player, function(member)
+            -- Apply update for players on the current quest step
+            if
+                member:getCharVar(var) == (step - 1) and
+                (check == nil or check(alliance[i]))
+            then
+                -- Apply var changes only for flagged players
+                if
+                    params ~= nil and
+                    params.flag ~= nil
+                then
+                    if member:getLocalVar(params.flag) == 1 then
+                        member:setCharVar(var, nextStep)
+                        member:setLocalVar(params.flag, 0)
+                    end
+                else
+                    member:setCharVar(var, nextStep)
+                end
+            end
+
+            -- Apply optional cooldown or clear local var for all players
+            if params ~= nil then
+                if params.cooldown ~= nil then
+                    member:setCharVar(params.cooldown, 1, getMidnight())
+                end
+
+                if params.setLocal ~= nil then
+                    member:setLocalVar(params.setLocal.var, params.setLocal.val)
+                end
+
+                if params.helper ~= nil then
+                    local cooldownVar = var .. "_HELPER"
+
+                    if params.var ~= nil then
+                        cooldownVar = params.var
+                    end
+
+                    awardGive(member, cooldownVar, params.helper)
+                end
+
+                if params.exp ~= nil then
+                    member:addExp(params.exp)
+                end
+
+                if params.message ~= nil then
+                    if params.points ~= nil then
+                        local total = params.points
+
+                        if params.multiplier ~= nil then
+                            local multiply mob:getLocalVar(params.multiplier.var)
+                            total = utils.clamp(params.points * multiply, params.multiplier.range[1], params.multiplier.range[2]) + math.random(1, params.points)
+                        else
+                            if type(params.points) == "table" then
+                                total = math.random(params.points[1], params.points[2])
+                            end
+                        end
+
+                        member:incrementCharVar(params.pointsVar, total)
+                        member:sys(params.message, member:getName(), total)
+                    else
+                        member:sys(params.message)
+                    end
+                end
+
+                if params.cooldown ~= nil then
+                    member:setCharVar(params.cooldown, 1, getMidnight())
+                end
+
+                if params.func ~= nil then
+                    params.func(member, step - 1)
+                end
+
+                if params.raise ~= nil then
+                    member:sendRaise(params.raise)
+                end
+            end
+
+            -- Remove level cap
+            removeLevelCap(member)
+        end)
+
+        -- Respawn spawner
+        if params.spawner ~= nil then
+            local spawner = getEntity(player, params.spawner)
+
+            if spawner ~= nil then
+                spawner:setStatus(xi.status.NORMAL)
+            end
+        end
+    end
+end
+
+LQS.npcSpawner = function(tbl, npc, spawner, keepSpawner)
+    local result = {}
+    local before = {}
+    local after  = {}
+
+    local npcs = npc
+
+    if type(npc) ~= "table" then
+        npcs = { npc }
+    end
+
+    if keepSpawner then
+        before =
+        {
+            { noturn  = true },
+            { spawn   = npcs },
+            { delay   = 500 },
+            { entity  = npcs[1], face = "player" },
+            { delay   = 500 },
+        }
+
+        after =
+        {
+            { delay   = 500 },
+            { despawn = npcs },
+        }
+    else
+        before =
+        {
+            { despawn = { spawner } },
+            { spawn   = npcs },
+            { delay   = 500 },
+            { entity  = npcs[1], face = "player" },
+            { delay   = 500 },
+        }
+
+        after =
+        {
+            { delay   = 500 },
+            { despawn = npcs },
+            { spawn   = { spawner } },
+        }
+    end
+
+    for _, line in pairs(before) do
+        table.insert(result, line)
+    end
+
+    for _, line in pairs(tbl) do
+        table.insert(result, line)
+    end
+
+    for _, line in pairs(after) do
+        table.insert(result, line)
+    end
+
+    return result
+end
+
+-----------------------------------
+-- Extra helpers
+-----------------------------------
+LQS.nothingElse = function()
+    return LQS.dialog({
+        step  = false,
+        name  = "",
+        event =
+        {
+            "There is nothing else to do here.",
+        },
+    })
+end
+
+-----------------------------------
+-- Step generators
+-----------------------------------
+local function getStepFunctions(steps, name)
+    local func = {}
+
+    for i = 1, #steps do
+        if steps[i][name] ~= nil then
+            func[i] = steps[i][name]
+        end
+    end
+
+    return func
+end
+
+local getSteps = function(var, entity, steps, entities)
+    local func = getStepFunctions(steps, entity.name)
+
+    return function(player, npc)
+        -- Interactable NPCs must have a dialog table or default dialog
+        if entity.dialog == nil and entity.default == nil then
+            return
+        end
+
+        local defaultDialog = nil
+
+        if entity.dialog ~= nil then
+            defaultDialog = entity.dialog.DEFAULT
+        elseif entity.default ~= nil then
+            defaultDialog = entity.default
+        else
+            return
+        end
+
+        local step    = player:getCharVar(var) + 1
+        local npcName = entity.name
+
+        if entity.marker ~= nil then
+            npcName = ""
+        elseif npcName == nil then
+            npcName = npc:getPacketName()
+        end
+
+        if
+            func[step] == nil or
+            (
+                steps[step].check and
+                not steps[step].check(player)
+            )
+        then
+            LQS.event(player, npc, defaultDialog)
+        else
+            if type(func[step]) == "table" then
+                if func[step]["onTrigger"] ~= nil then
+                    if
+                        func[step].check and
+                        not func[step].check(player)
+                    then
+                        LQS.event(player, npc, defaultDialog)
+                        return
+                    end
+
+                    func[step]["onTrigger"](player, npc, entity, var, step, entities)
+                else
+                    LQS.event(player, npc, defaultDialog)
+                end
+            else
+                func[step](player, npc, entity, var, step, entities)
+            end
+        end
+    end
+end
+
+local getTradeSteps = function(var, entity, steps, tbl)
+    local func = getStepFunctions(steps, entity.name)
+
+    return function(player, npc, trade)
+        local step = player:getCharVar(var) + 1
+
+        -- Do not attempt to call trade functions on dialog only step
+        if
+            func[step] ~= nil and
+            type(func[step]) == "table" and
+            func[step]["onTrade"]
+        then
+            if
+                func[step].check and
+                not func[step].check(player)
+            then
+                return
+            end
+
+            func[step]["onTrade"](player, npc, trade, entity, var, step, tbl)
+        end
+    end
+end
+
+local getMobSteps = function(event, var, entity, steps, entities)
+    local func = getStepFunctions(steps, entity.name)
+
+    return function(mob, player, optParams)
+        -- TODO:
+        -- Can we respawn the marker if we don't know the step?
+        if player == nil then
+            return
+        end
+
+        if
+            entity.restore ~= nil and
+            player:isPC() and
+            optParams ~= nil and optParams.isKiller
+        then
+            player:setHP(player:getMaxHP())
+            player:setMP(player:getMaxMP())
+            player:setTP(3000)
+        end
+
+        if mob:getLocalVar("LOOT_ROLLED") == 0 then
+            if entity.loot ~= nil then
+                mob:setLocalVar("LOOT_ROLLED", 1)
+
+                for _, itemInfo in pairs(entity.loot) do
+                    player:addTreasure(itemInfo[2], mob, itemInfo[1])
+                end
+            end
+
+            -- TODO: Clean this up
+            if entity.pool ~= nil then
+                mob:setLocalVar("LOOT_ROLLED", 1)
+
+                for _, pool in pairs(entity.pool) do
+                    if pool.quantity ~= nil then
+                        for _ = 1, pool.quantity do
+                            local result = LQS.pickItem(pool)
+
+                            if result[2] ~= 0 then
+                                player:addTreasure(result[2], mob)
+                            end
+                        end
+                    else
+                        local result = LQS.pickItem(pool)
+
+                        if result[2] ~= 0 then
+                            player:addTreasure(result[2], mob)
+                        end
+                    end
+                end
+            end
+        end
+
+        if
+            entity.points ~= nil and
+            mob:getLocalVar("POINTS_ROLLED") == 0
+        then
+            mob:setLocalVar("POINTS_ROLLED", 1)
+
+            allPlayers(player, function(member)
+                if entity.points.exp ~= nil then
+                    member:addExp(entity.points.exp)
+                end
+
+                if entity.points.amount ~= nil then
+                    local amount = math.random(entity.points.amount[1], entity.points.amount[2])
+                    member:incrementCharVar(entity.points.var, amount)
+                    member:sys(entity.points.message, member:getName(), amount)
+                end
+
+                if entity.points.gil ~= nil then
+                    npcUtil.giveCurrency(member, "gil", entity.points.gil)
+                end
+
+                if entity.points.item ~= nil then
+                    if 
+                        not npcUtil.giveItem(member, entity.points.item) and
+                        entity.points.missed ~= nil
+                    then
+                        member:sys("Your missed item was stored at the relevant NPC.")
+                        member:incrementCharVar(fmt(entity.points.missed, entity.points.item))
+                    end
+                end
+            end)
+        end
+
+        if entity.after ~= nil then
+            after(mob, player)
+        end
+
+        if entity.delCap ~= nil then
+            allPlayers(player, function(member)
+                member:delStatusEffect(xi.effect.LEVEL_RESTRICTION)
+            end)
+        end
+
+        if entity.tally ~= nil then
+            allPlayers(player, function(member)
+                member:incrementCharVar(entity.tally, 1)
+            end)
+        end
+
+        local step = player:getCharVar(var) + 1
+
+        if func[step] == nil then
+            return
+        end
+
+        if type(func[step]) == "table" then
+            if
+                func[step].check ~= nil and
+                not func[step].check(player)
+            then
+                return
+            end
+
+            if func[step][event] ~= nil then
+                func[step][event](mob, player, entity, var, step, entities, func[step].check)
+            end
+        elseif event == "onMobDeath" then
+            func[step](mob, player, entity, var, step, entities, nil)
+        end
+    end
+end
+
+-----------------------------------
+-- Entity load and reload
+-----------------------------------
+local function entitySetup(dynamicEntity, tbl, entity)
+    if
+        entity.type == xi.objType.NPC or
+        entity.marker ~= nil
+    then
+        dynamicEntity.onTrigger = getSteps(tbl.info.var, entity, tbl.steps, tbl.entities)
+        dynamicEntity.onTrade   = getTradeSteps(tbl.info.var, entity, tbl.steps, tbl.entities)
+
+    elseif entity.type == xi.objType.MOB then
+        dynamicEntity.groupId     = entity.groupId
+        dynamicEntity.groupZoneId = entity.groupZoneId
+
+        if entity.base ~= nil then
+            dynamicEntity.groupId     = entity.base[2]
+            dynamicEntity.groupZoneId = entity.base[1]
+        end
+
+        dynamicEntity.onMobDeath     = getMobSteps("onMobDeath", tbl.info.var, entity, tbl.steps, tbl.entities)
+        dynamicEntity.onMobDisengage = function(mob)
+            DespawnMob(mob:getID())
+        end
+
+        dynamicEntity.onMobInitialize = function(mob)
+            mob:setMobMod(xi.mobMod.DETECTION, 0x08)
+            mob:setMobMod(xi.mobMod.CHECK_AS_NM,  1)
+            mob:setMobMod(xi.mobMod.CHARMABLE,    0)
+
+            if entity.aeffect ~= nil then
+                mob:setMobMod(xi.mobMod.ADD_EFFECT, 1)
+            end
+
+            if entity.jobSpecial then
+                g_mixins.job_special(mob)
+            end
+
+            if entity.immunities ~= nil then
+                for _, immunity in pairs(entity.immunities) do
+                    mob:addImmunity(immunity)
+                end
+            end
+
+            if entity.skillList ~= nil then
+                mob:setMobMod(xi.mobMod.SKILL_LIST, entity.skillList)
+            end
+
+            if entity.spellList ~= nil then
+                mob:setMobMod(xi.mobMod.SPELL_LIST, entity.spellList)
+            end
+
+            if entity.mobMods ~= nil then
+                for mobModID, mobModValue in pairs(entity.mobMods) do
+                    mob:setMobMod(mobModID, mobModValue)
+                end
+            end
+        end
+
+        if entity.onMobFight ~= nil then
+            dynamicEntity.onMobFight = function(mob, target)
+                entity.onMobFight(mob, target)
+            end
+        end
+
+        if entity.onMobSpawn ~= nil then
+            dynamicEntity.onMobSpawn = function(mob)
+                entity.onMobSpawn(mob)
+            end
+        end
+
+        if entity.onMobRoam ~= nil then
+            dynamicEntity.onMobRoam = function(mob)
+                entity.onMobRoam(mob)
+            end
+        end
+
+        if entity.aeffect ~= nil then
+            if type(entity.aeffect) == "table" then
+                dynamicEntity.onAdditionalEffect = function(mob, target, damage)
+                    return xi.mob.onAddEffect(mob, target, damage, entity.aeffect[1], { power = math.random(entity.aeffect[2], entity.aeffect[3]) })
+                end
+            else
+                dynamicEntity.onAdditionalEffect = function(mob, target, damage)
+                    return xi.mob.onAddEffect(mob, target, damage, entity.aeffect, { power = math.random(16, 26) })
+                end
+            end
+        end
+    end
+end
+
+local function entityAfter(de, entity)
+    if entity.animation then
+        de:setAnimation(entity.animation)
+    end
+
+    if entity.hidden then
+        de:setStatus(xi.status.DISAPPEAR)
+    end
+
+    if entity.hidename ~= nil then
+        de:hideName(entity.hidename)
+    end
+
+    -- Hide names and HP for side-quest/sparkle markers
+    if entity.marker ~= nil then
+        de:hideName(true)
+        de:hideHP(true)
+    end
+
+    if entity.hidehp ~= nil then
+        de:hideHP(entity.hidehp)
+    end
+
+    if entity.notarget ~= nil then
+        de:setUntargetable(entity.notarget)
+    end
+
+    if
+        entity.type == xi.objType.MOB and
+        entity.dialog ~= nil
+    then
+        printf("[LQS] %s is a mob but has been assigned dialog.", entity.name)
+    end
+end
+
+local function entityRefresh(dynamicEntity, zone, tbl, entity)
+    local result = zone:queryEntitiesByName("DE_" .. entity.name)
+
+    if result ~= nil then
+        for _, de in pairs(result) do
+            de:setPos(entity.pos[1], entity.pos[2], entity.pos[3], entity.pos[4])
+
+            if type(entity.look) == "string" then
+                de:setLookString(entity.look)
+
+            -- TODO: Need extra packet to update without zoning
+            elseif entity.marker == nil then
+                de:setModelId(entity.look)
+            end
+
+            entityAfter(de, entity)
+        end
+        printf("[LQS] Entity DE_%s was updated.", entity.name)
+    else
+        printf("[LQS] Entity DE_%s not found.", entity.name)
+    end
+end
+
+-----------------------------------
+-- Prevents Treasure Caskets spawning for custom quest mobs
+-----------------------------------
+LQS:addOverride("xi.caskets.spawnCasket", function(player, mob, x, y, z, r)
+    if mob:getLocalVar("NO_CASKET") == 1 then
+        return
+    else
+        super(player, mob, x, y, z, r)
+    end
+end)
+
+-----------------------------------
+-- LQS.add - Initialise new quest
+-----------------------------------
+LQS.add = function(source, tbl)
+    for zoneName, zoneEntities in pairs(tbl.entities) do
+
+        -- Live reload of dynamic entities
+        for _, entityInfo in pairs(zoneEntities) do
+            if
+                xi ~= nil and
+                xi.zones ~= nil and
+                xi.zones[zoneName] ~= nil and
+                xi.zones[zoneName].npcs ~= nil
+            then
+                local dynamicEntity = xi.zones[zoneName].npcs["DE_" .. entityInfo.name]
+
+                if dynamicEntity ~= nil then
+                    entitySetup(dynamicEntity, tbl, entityInfo)
+
+                    local zone = GetZone(xi.zone[string.upper(zoneName)])
+
+                    if zone ~= nil then
+                        entityRefresh(dynamicEntity, zone, tbl, entityInfo)
+                    end
+                end
+            end
+        end
+
+        -- First time load of dynamic entities
+        source:addOverride(string.format("xi.zones.%s.Zone.onInitialize", zoneName), function(zone)
+            super(zone)
+
+            for index, entity in pairs(zoneEntities) do
+                if LQS.settings.DEBUG then
+                    printf("[LQS] Added entity %s to %s (%s)", entity.name, zoneName, tbl.info.name)
+                end
+
+                local dynamicEntity =
+                {
+                    name        = entity.name,
+                    packetName  = entity.packetName,
+                    objtype     = entity.type or xi.objType.NPC,
+                    namevis     = entity.namevis or 0,
+                    entityFlags = entity.flags or 0,
+                    x           = entity.pos[1],
+                    y           = entity.pos[2],
+                    z           = entity.pos[3],
+                    rotation    = entity.pos[4] or 0,
+                    widescan    = 1,
+                }
+
+                if entity.marker ~= nil then
+                    if entity.marker == LQS.MAIN_QUEST then
+                        dynamicEntity.look = LQS.marker.SHIMMER
+                    else
+                        dynamicEntity.look = LQS.marker.SPARKLE
+                    end
+                end
+
+                if entity.look ~= nil then 
+                    dynamicEntity.look = entity.look
+                end
+
+                entitySetup(dynamicEntity, tbl, entity)
+
+                tbl.entities[zoneName][index].entity = zone:insertDynamicEntity(dynamicEntity)
+
+                entityAfter(tbl.entities[zoneName][index].entity, entity)
+            end
+        end)
+    end
+end
+
+return LQS
