@@ -1,4 +1,5 @@
 # Loxley Quest System (LQS)
+[![LQS](https://github.com/LoxleyXI/LQS/blob/main/lqs.png)](https://github.com/LoxleyXI/LQS)
 
 ## Overview
 The Loxley Quest System (LQS) is a module for the [LandSandBoat](https://github.com/LandSandBoat/server) FFXI server emulator. It allows server operators to easily create their own custom quests and script custom events using a simple template system. The system provides an authentic experience and is actively in use by multiple prominent FFXI server projects.
