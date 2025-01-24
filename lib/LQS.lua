@@ -146,6 +146,31 @@ local getEntity = function(player, entityName)
     return result[1]
 end
 
+local function eventSpawn(obj, player, npc, event)
+    if obj.spawn == nil then
+        return false
+    end
+
+    local spawned = getEntity(player, obj.spawn)
+
+    npc:ceDespawn(player)
+    spawned:ceSpawn(player)
+
+    player:timer(750, function()
+        spawned:ceFace(player)
+        LQS.event(player, spawned, event)
+    end)
+
+    local delay = LQS.eventDelay(event)
+
+    player:timer(delay + 1500, function()
+        npc:ceSpawn(player)
+        spawned:ceDespawn(player)
+    end)
+
+    return true
+end
+
 -- TODO: Should this be kept for LQS?
 local scriptedEvent = function(player, entities, events)
     local ents = {}
@@ -802,10 +827,15 @@ LQS.dialog = function(obj)
             event = conditional[obj.conditionalDialog](player, obj.event)
         end
 
-        if obj.name == "" then
-            LQS.event(player, nil, event)
-        else
-            LQS.event(player, npc, event)
+        -----------------------------------
+        -- If spawned, despawn marker and spawn NPC
+        -----------------------------------
+        if not eventSpawn(obj, player, npc, event) then
+            if obj.name == "" then
+                LQS.event(player, nil, event)
+            else
+                LQS.event(player, npc, event)
+            end
         end
 
         -- If not a step, stop here
@@ -941,7 +971,10 @@ LQS.trade = function(obj)
                 if npcUtil.tradeHasExactly(trade, tradeInfo.required) then
                     player:setLocalVar("[LQS]REWARD", 1)
                     local delay = LQS.eventDelay(tradeInfo.accepted)
-                    LQS.event(player, npc, tradeInfo.accepted)
+
+                    if not eventSpawn(obj, player, npc, tradeInfo.accepted) then
+                        LQS.event(player, npc, tradeInfo.accepted)
+                    end
 
                     player:timer(delay, function(playerArg)
                         performTrade(obj, player, var, nil, tradeInfo.increment)
@@ -963,7 +996,10 @@ LQS.trade = function(obj)
                     obj.sellrate == nil) or
                     (obj.exclude ~= nil and obj.exclude[itemID])
                 then
-                    LQS.event(player, npc, obj.declined)
+                    if not eventSpawn(obj, player, npc, obj.declined) then
+                        LQS.event(player, npc, obj.declined)
+                    end
+
                     return
                 end
 
@@ -979,8 +1015,10 @@ LQS.trade = function(obj)
 
             player:setLocalVar("[LQS]REWARD", 1)
 
-            local delay = LQS.eventDelay(obj.accepted)
-            LQS.event(player, npc, obj.accepted)
+            if not eventSpawn(obj, player, npc, obj.accepted) then
+                local delay = LQS.eventDelay(obj.accepted)
+                LQS.event(player, npc, obj.accepted)
+            end
 
             player:timer(delay, function(playerArg)
                 local givenGil = 0
@@ -1103,9 +1141,12 @@ LQS.trade = function(obj)
                 npcUtil.tradeHasExactly(trade, obj.required)
             then
                 player:setLocalVar("[LQS]REWARD", 1)
+
                 local delay = LQS.eventDelay(obj.accepted)
 
-                LQS.event(player, npc, obj.accepted)
+                if not eventSpawn(obj, player, npc, obj.accepted) then
+                    LQS.event(player, npc, obj.accepted)
+                end
 
                 -- TODO: ?
                 -- LQS.event(player, obj.accepted, obj.name, { [1] = count, [2] = total, npc = npc })
@@ -1118,7 +1159,9 @@ LQS.trade = function(obj)
             end
         end
 
-        LQS.event(player, npc, obj.declined)
+        if not eventSpawn(obj, player, npc, obj.declined) then
+            LQS.event(player, npc, obj.declined)
+        end
     end
 end
 
