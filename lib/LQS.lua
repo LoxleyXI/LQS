@@ -18,14 +18,24 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see http://www.gnu.org/licenses/
 -----------------------------------
-local LQS = Module:new("LQS_Loxley_Quest_System")
+local m = Module:new("LQS_Loxley_Quest_System")
 -----------------------------------
+-- Define globally for reloads and persistence between files
+LQS          = LQS or {}
+LQS.registry = LQS.registry or {}
+
 LQS.settings =
 {
     -- Respawn of spawners
     RESPAWN = 180000, -- 3 minutes
     DEBUG   = true,   -- Enable debugging mode
 }
+
+-- Pull optional setting overrides from LSB map settings
+if xi.settings.main.LQS ~= nil then
+    LQS.settings.RESPAWN = xi.settings.main.LQS.RESPAWN or LQS.settings.RESPAWN
+    LQS.settings.DEBUG   = xi.settings.main.LQS.DEBUG   or LQS.settings.DEBUG
+end
 
 LQS.marker =
 {
@@ -38,7 +48,7 @@ LQS.marker =
 LQS.MAIN_QUEST   = "MAIN_QUEST"
 LQS.SIDE_QUEST   = "SIDE_QUEST"
 LQS.NOTHING      = { { object = true }, "You see nothing out of the ordinary." }
-LQS.NOTHING_ELSE = { { object = true }, "There is nothing else to do here." }
+LQS.NOTHING_ELSE = { { object = true }, "There is nothing else to do here."    }
 
 LQS.standardImmunities =
 {
@@ -202,6 +212,7 @@ local processTable = function(player, prefix, row, delay)
             end
         else
             local entity = getEntity(player, row.entity)
+
             if entity == nil then
                 return
             end
@@ -212,6 +223,7 @@ local processTable = function(player, prefix, row, delay)
                 entity:ceTurn(player, row.face)
             else
                 local otherEntity = getEntity(player, row.face)
+
                 if otherEntity then
                     entity:ceFaceNpc(player, otherEntity)
                 end
@@ -2315,7 +2327,7 @@ end
 -----------------------------------
 -- Prevents Treasure Caskets spawning for custom quest mobs
 -----------------------------------
-LQS:addOverride("xi.caskets.spawnCasket", function(player, mob, x, y, z, r)
+m:addOverride("xi.caskets.spawnCasket", function(player, mob, x, y, z, r)
     if mob:getLocalVar("NO_CASKET") == 1 then
         return
     else
@@ -2326,9 +2338,71 @@ end)
 -----------------------------------
 -- LQS.add - Initialise new quest
 -----------------------------------
-LQS.add = function(source, tbl)
-    for zoneName, zoneEntities in pairs(tbl.entities) do
+local function getStepHint(tbl, step, entityZone, entityType)
+    local hint = "Unknown"
 
+    for entityName, stepInfo in pairs(step) do
+        local detail = fmt("{} in {}", string.gsub(entityName, "_", " "), entityZone[entityName])
+
+        if entityType[entityName] == xi.objType.MOB then
+            return "Defeat " .. detail
+        else
+            if
+                type(step[entityName]) == "table" and
+                step[entityName].onTrade ~= nil
+            then
+                return "Trade " .. detail
+            else
+                hint = "Interact with " .. detail
+            end
+        end
+    end
+
+    return hint
+end
+
+LQS.add = function(source, tbl)
+    -----------------------------------
+    -- Create quest registry for !quest command
+    -----------------------------------
+    local registryName = string.lower(tbl.info.name)
+
+    LQS.registry[registryName] =
+    {
+        name   = tbl.info.name,
+        author = tbl.info.author,
+        var    = tbl.info.var,
+        finish = #tbl.steps,
+        hint   = {}
+    }
+
+    local entityZone = {}
+    local entityType = {}
+
+    for zoneName, entityList in pairs(tbl.entities) do
+        for _, entityInfo in pairs(entityList) do
+            entityZone[entityInfo.name] = string.gsub(zoneName, "_", " ")
+            entityType[entityInfo.name] = entityInfo.type or xi.objType.NPC
+        end
+    end
+
+    for _, step in pairs(tbl.steps) do
+        table.insert(LQS.registry[registryName].hint, getStepHint(tbl, step, entityZone, entityType))
+    end
+
+    if tbl.info.reward ~= nil then
+        if type(tbl.info.reward) == "number" then
+            LQS.registry[registryName].reward = tbl.info.reward
+
+        elseif type(tbl.info.reward) == "table" then
+            LQS.registry[registryName].reward = tbl.info.reward.item
+        end
+    end
+
+    -----------------------------------
+    -- Create quest entities
+    -----------------------------------
+    for zoneName, zoneEntities in pairs(tbl.entities) do
         -- Live reload of dynamic entities
         for _, entityInfo in pairs(zoneEntities) do
             if
@@ -2396,4 +2470,4 @@ LQS.add = function(source, tbl)
     end
 end
 
-return LQS
+return m

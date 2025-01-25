@@ -5,8 +5,6 @@
 -- Khartes        !pos 53.340 -15.273 9.958 248
 -- Miner's Helmet !pos -228.663 -21.546 -252.635 212
 -----------------------------------
-local LQS = require("modules/catseyexi/lua/lib/LQS")
------------------------------------
 local m = Module:new("lqs_here_be_dragons")
 
 local info =
@@ -14,6 +12,7 @@ local info =
     name   = "Here be dragons",
     author = "Loxley",
     var    = "[LQS]HERE_BE_DRAGONS",
+    reward = xi.item.DRAGON_CHRONICLES,
 }
 
 local Khartes      = "Khartes"
@@ -108,7 +107,7 @@ LQS.add(m, {
         {
             [MinersHelmet] = LQS.nothingElse(),
             [Khartes]      = LQS.dialog({
-                reward = xi.item.DRAGON_CHRONICLES,
+                reward = info.reward,
                 quest  = info.name,
                 music  = 112, -- Selbina
                 event  =
