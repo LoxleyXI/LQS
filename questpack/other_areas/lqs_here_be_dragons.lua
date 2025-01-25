@@ -61,7 +61,7 @@ LQS.add(m, {
     steps =
     {
         {
-            check     = LQS.checks({ cw = true, level = 40 }),
+            check     = LQS.checks({ level = 40, toggle = true }),
             [Khartes] = LQS.dialog({
                 quest = info.name,
                 event =
@@ -109,7 +109,6 @@ LQS.add(m, {
             [Khartes]      = LQS.dialog({
                 reward = info.reward,
                 quest  = info.name,
-                music  = 112, -- Selbina
                 event  =
                 {
                     "Woah! You really fought a dragon all by yourself!?",

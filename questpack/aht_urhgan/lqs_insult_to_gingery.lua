@@ -61,7 +61,7 @@ LQS.add(m, {
     steps =
     {
         {
-            check   = LQS.checks({ level = 40 }),
+            check   = LQS.checks({ level = 40, toggle = true }),
             [Gordo] = LQS.dialog({
                 quest = info.name,
                 event =
@@ -125,7 +125,6 @@ LQS.add(m, {
                 onTrade = LQS.trade({
                     quest    = info.name,
                     step     = false,
-                    music    = 178, -- Whitegate
                     required = info.required.item,
                     reward   = info.reward[2],
                     tally    = info.tally,

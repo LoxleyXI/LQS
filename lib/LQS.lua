@@ -533,7 +533,7 @@ LQS.questAccepted = function(player, questName, isMission)
     player:sys(text, questName)
 end
 
-LQS.questCompleted = function(player, questName, music, isMission)
+LQS.questCompleted = function(player, questName, isMission)
     local text = "\129\159 Quest Completed: {}"
 
     if isMission then
@@ -541,14 +541,6 @@ LQS.questCompleted = function(player, questName, music, isMission)
     end
 
     player:sys(text, questName)
-
-    player:changeMusic(0, 67)
-    player:changeMusic(1, 67)
-
-    player:timer(5000, function(playerArg)
-        player:changeMusic(0, music or 0)
-        player:changeMusic(1, music or 0)
-    end)
 end
 
 -----------------------------------
@@ -687,26 +679,21 @@ end
 -----------------------------------
 -- LQS.checks
 -----------------------------------
+-- This function can be overwritten with custom conditions per server using a separate module
+-- For example, quests can be made only accessible to particular character types, or toggled off before release
+LQS.toggle = function(player, val)
+    return true
+end
+
 local checkList =
 {
-    -- TODO: Need a way to add custom checks instead
-    --[[
-    cw = function(player, val)
-        return player:isCrystalWarrior() == val
+    toggle = function(player, val)
+        return LQS.filter(player, val)
     end,
 
-    ucw = function(player, val)
-        return player:isUnbreakable() == val
+    eval = function(player, val)
+        return val(player, val)
     end,
-
-    wew = function(player, val)
-        return player:isClassicMode() == val
-    end,
-
-    era = function(player, val)
-        return player:isCrystalWarrior() or player:isClassicMode()
-    end,
-    ]]
 
     gm = function(player, val)
         return (player:getGMLevel() > 0) == val
@@ -906,7 +893,7 @@ LQS.dialog = function(obj)
                 if obj.beginQuest ~= nil then
                     LQS.questAccepted(player, obj.beginQuest)
                 elseif obj.quest ~= nil then
-                    LQS.questCompleted(player, obj.quest, obj.music, false)
+                    LQS.questCompleted(player, obj.quest, false)
                 elseif obj.mission ~= nil then
                     LQS.newMission(player, obj.mission)
                 end
@@ -969,7 +956,7 @@ local function performTrade(obj, player, var, count, increment, items, multiple)
         end
 
         if obj.quest ~= nil then
-            LQS.questCompleted(player, obj.quest, obj.music, false)
+            LQS.questCompleted(player, obj.quest, false)
         elseif obj.mission ~= nil then
             LQS.newMission(player, obj.mission)
         end
@@ -1584,7 +1571,7 @@ LQS.menu = function(obj)
 
                                 if obj.quest ~= nil then
                                     if obj.finish ~= nil then
-                                        LQS.questCompleted(player, obj.quest, obj.music, false)
+                                        LQS.questCompleted(player, obj.quest, false)
                                     else
                                         LQS.questAccepted(player, obj.quest, false)
                                     end

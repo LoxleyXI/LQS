@@ -59,7 +59,7 @@ LQS.add(m, {
         {
             [Tracks] = LQS.dialog({
                 quest = info.name,
-                check = { level = 10 },
+                check = { level = 10, toggle = true },
                 spawn = Shu,
                 event =
                 {
