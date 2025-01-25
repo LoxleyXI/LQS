@@ -202,10 +202,14 @@ local scriptedEvent = function(player, entities, events)
     return 6000 + #events * 1000
 end
 
-local processTable = function(player, prefix, row, delay)
+local processTable = function(player, npc, prefix, row, delay)
+    if row.fmt ~= nil then
+        local result = player:getCharVar(row.var)
+        player:fmt(row.fmt, result)
+
     -- Face
     -- Turn entity to face target
-    if row.face ~= nil then
+    elseif row.face ~= nil then
         if row.entity == nil then
             if npc then
                 npc:ceFace(player)
@@ -484,7 +488,7 @@ LQS.event = function(player, npc, tbl)
         -- Process tables
         else
             player:timer(delay, function(playerArg)
-                processTable(player, npc,prefix, row, delay)
+                processTable(player, npc, prefix, row, delay)
             end)
 
             if row.delay ~= nil then
@@ -940,7 +944,7 @@ end
 local function performTrade(obj, player, var, count, increment, items, multiple)
     if
         (obj.reward == nil and items == nil) or
-        (type(obj.reward) == "table" and obj.reward.item ~= nil and giveReward(player, obj.reward)) or
+        (type(obj.reward) == "table" and giveReward(player, obj.reward)) or
         npcUtil.giveItem(player, items or obj.reward, { multiple = multiple })
     then
         player:tradeComplete()
@@ -952,8 +956,16 @@ local function performTrade(obj, player, var, count, increment, items, multiple)
             player:incrementCharVar(var, increment or 1)
         end
 
-        if obj.reward ~= nil then
-            giveAfter(player, obj.reward)
+        if
+            obj.reward ~= nil and
+            type(obj.reward) == "table" and
+            obj.reward.after ~= nil
+        then
+            local result = reward.after(player)
+
+            if type(result) ~= "boolean" then
+                print("[LQS] Reward \"after\" function did not return a boolean value.")
+            end
         end
 
         if obj.quest ~= nil then
@@ -1148,10 +1160,7 @@ LQS.trade = function(obj)
                 total = total + player:getCharVar(obj.tally)
             end
 
-            if
-                (obj.tally ~= nil and npcUtil.tradeHas(trade, { { obj.required, count } }, false)) or
-                npcUtil.tradeHasExactly(trade, obj.required)
-            then
+            if npcUtil.tradeHasExactly(trade, obj.required) then
                 player:setLocalVar("[LQS]REWARD", 1)
 
                 local delay = LQS.eventDelay(obj.accepted)
@@ -1159,9 +1168,6 @@ LQS.trade = function(obj)
                 if not eventSpawn(obj, player, npc, obj.accepted) then
                     LQS.event(player, npc, obj.accepted)
                 end
-
-                -- TODO: ?
-                -- LQS.event(player, obj.accepted, obj.name, { [1] = count, [2] = total, npc = npc })
 
                 player:timer(delay, function(playerArg)
                     performTrade(obj, player, var, count)
@@ -2373,7 +2379,8 @@ LQS.add = function(source, tbl)
         author = tbl.info.author,
         var    = tbl.info.var,
         finish = #tbl.steps,
-        hint   = {}
+        hint   = {},
+        reward = {},
     }
 
     local entityZone = {}
@@ -2391,11 +2398,15 @@ LQS.add = function(source, tbl)
     end
 
     if tbl.info.reward ~= nil then
-        if type(tbl.info.reward) == "number" then
-            LQS.registry[registryName].reward = tbl.info.reward
-
-        elseif type(tbl.info.reward) == "table" then
-            LQS.registry[registryName].reward = tbl.info.reward.item
+        if
+            type(tbl.info.reward) == "table" and
+            tbl.info.reward[1] ~= nil
+        then
+            for _, rewardInfo in pairs(tbl.info.reward) do
+                table.insert(LQS.registry[registryName].reward, rewardInfo)
+            end
+        else
+            table.insert(LQS.registry[registryName].reward, tbl.info.reward)
         end
     end
 

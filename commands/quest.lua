@@ -53,7 +53,26 @@ commandObj.onTrigger = function(player, str)
         player:fmt("{} (Author: {})", questInfo.name, questInfo.author)
 
         if questInfo.reward ~= nil then
-            player:fmt("Reward: {} ", getItemName(questInfo.reward))
+            local str = "Reward: "
+
+            for index, rewardInfo in pairs(questInfo.reward) do
+                if rewardInfo.item ~= nil then
+                    str = str .. getItemName(rewardInfo.item)
+
+                    if rewardInfo.augment ~= nil then
+                        str = str .. " (Augmented)"
+                    end
+
+                elseif rewardInfo.gil ~= nil then
+                    str = str .. rewardInfo.gil .. " gil"
+                end
+
+                if index < #questInfo.reward then
+                    str = str .. ", "
+                end
+            end
+
+            player:fmt(str)
         end
 
         local stepInfo = fmt("Current step: {}/{}", status, questInfo.finish)
