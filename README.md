@@ -26,7 +26,7 @@ If you found this module helpful, please consider kindly supporting my other wor
 
 ## Simple Example
 
-## Steps Functions
+## Step Functions
 ### LQS.dialog
 ### LQS.trade
 ### LQS.menu

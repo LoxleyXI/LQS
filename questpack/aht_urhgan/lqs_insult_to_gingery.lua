@@ -52,7 +52,6 @@ LQS.add(m, {
                     legs = 11,
                     feet = 11,
                 }),
-                area    = "Aht_Urhgan_Whitegate",
                 pos     = { 16.855, -6.000, -51.214, 95 }, -- !pos 16.855 -6.000 -51.214 50
                 default = { "I don't have anything for you." },
             },
@@ -91,7 +90,6 @@ LQS.add(m, {
                 }),
                 onTrade = LQS.trade({
                     quest    = info.name,
-                    music    = 178, -- Whitegate
                     required = info.required.item,
                     reward   = info.reward[1],
                     tally    = info.tally,

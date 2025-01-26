@@ -594,8 +594,8 @@ end
 -- Entity utils
 -----------------------------------
 local function getEntity(player, entityName)
-    local zone     = player:getZone()
-    local result   = zone:queryEntitiesByName("DE_" .. entityName)
+    local zone   = player:getZone()
+    local result = zone:queryEntitiesByName("DE_" .. entityName)
 
     return result[1]
 end
@@ -688,7 +688,7 @@ end
 local checkList =
 {
     toggle = function(player, val)
-        return LQS.filter(player, val)
+        return LQS.toggle(player, val)
     end,
 
     eval = function(player, val)
