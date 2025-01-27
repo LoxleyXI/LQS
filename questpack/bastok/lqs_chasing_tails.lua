@@ -55,7 +55,6 @@ LQS.add(m, {
     steps =
     {
         {
-            check = LQS.checks({ toggle = true }),
             [ShiningStone] = LQS.dialog({
                 quest = info.name,
                 event =

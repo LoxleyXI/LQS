@@ -62,7 +62,7 @@ LQS.add(m, {
     steps =
     {
         {
-            check = LQS.checks({ level = 50, toggle = true }),
+            check = LQS.checks({ level = 50 }),
             [Vermali] = LQS.dialog({
                 quest = info.name,
                 event =

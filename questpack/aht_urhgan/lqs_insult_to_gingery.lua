@@ -60,7 +60,7 @@ LQS.add(m, {
     steps =
     {
         {
-            check   = LQS.checks({ level = 40, toggle = true }),
+            check   = LQS.checks({ level = 40 }),
             [Gordo] = LQS.dialog({
                 quest = info.name,
                 event =

@@ -61,7 +61,7 @@ LQS.add(m, {
     steps =
     {
         {
-            check     = LQS.checks({ level = 40, toggle = true }),
+            check     = LQS.checks({ level = 40 }),
             [Khartes] = LQS.dialog({
                 quest = info.name,
                 event =
@@ -115,11 +115,6 @@ LQS.add(m, {
                     { emote = xi.emote.HUH },
                     " I think I'll stay put and get a bit more experience before I wander in there!",
                 },
-                after  = function(player)
-                    player:setCharVar("[CW]GT_MINING", 1)
-                    player:sys("You have unlocked the ability to perform Mining in Gustav Tunnel.")
-                    return true
-                end,
             }),
         },
     },

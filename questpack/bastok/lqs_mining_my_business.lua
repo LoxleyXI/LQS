@@ -15,33 +15,22 @@ local info =
     name     = "Mining My Business",
     author   = "Loxley",
     var      = "[LQS]MINING_MY_BUSINESS",
-    required =
-    {
-        item = 5738,
-        name = "a chunk of sweet lizard",
-    },
+    required = 5738, -- Sweet Lizard
     reward   =
     {
         item  = { { xi.item.PICKAXE, 36 } },
-        after = function(player)
-            cq.rewardSlots(player, { xi.inv.WARDROBE4, 1 })
-            cq.fieldTunica(player)
-
-            return true
-        end,
     },
 }
 
 local IronDigger = "Iron Digger"
 
-cq.add(m, {
+LQS.add(m, {
     info   = info,
     entities =
     {
         ["Zeruhn_Mines"] =
         {
             {
-                id     = GALKA,
                 name   = IronDigger,
                 type   = xi.objType.NPC,
                 look   = cexi.util.look({
@@ -53,7 +42,6 @@ cq.add(m, {
                     legs = 17,
                     feet = 8,
                 }),
-                area    = "Zeruhn_Mines",
                 pos     = { 66.655, 7.925, -149.454, 31 }, -- !pos 66.655 7.925 -149.454 172
                 default = { "Sorry pal, I'm a little busy here right now." },
             },
@@ -62,8 +50,8 @@ cq.add(m, {
     steps =
     {
         {
-            check    = cq.checks({ CW = true, level = 5 }),
-            [GALKA]  = cq.dialog({
+            check        = LQS.checks({ level = 5 }),
+            [IronDigger] = LQS.dialog({
                 quest = info.name,
                 event =
                 {
@@ -81,18 +69,18 @@ cq.add(m, {
             })
         },
         {
-            [GALKA] =
+            [IronDigger] =
             {
-                onTrigger = cq.dialog({
+                onTrigger = LQS.dialog({
                     step  = false,
                     event =
                     {
                         "Bring me a chunk of sweet lizard and you can 'ave those picks.",
                     },
                 }),
-                onTrade   = LQS.trade({
+                onTrade = LQS.trade({
                     quest    = info.name,
-                    required = info.required.item,
+                    required = info.required,
                     reward   = info.reward,
                     declined =
                     {
@@ -109,12 +97,10 @@ cq.add(m, {
                         "Happy rock hittin' to the both o' us!",
                     },
                 }),
-
-                cq.tradeStep("ACCEPTED", "DECLINED", info.required.item, info.reward, info.name, cexi.music.NONE),
             }
         },
         {
-            [GALKA] = cq.dialog({
+            [IronDigger] = LQS.dialog({
                 step  = false,
                 event =
                 {

@@ -627,7 +627,7 @@ end
 -----------------------------------
 -- Reward utils
 -----------------------------------
-local function giveReward(player, reward)
+local function giveReward(player, reward, questName)
     if
         type(reward) == "number" or
         type(reward[1]) == "table"
@@ -673,24 +673,23 @@ local function giveReward(player, reward)
         end
     end
 
+    -- Execute optional quest registry override
+    if
+        questName ~= nil and
+        LQS.registry[questName] ~= nil and
+        LQS.registry[questName].after ~= nil
+    then
+        LQS.registry[questName].after(player)
+    end
+
     return true
 end
 
 -----------------------------------
 -- LQS.checks
 -----------------------------------
--- This function can be overwritten with custom conditions per server using a separate module
--- For example, quests can be made only accessible to particular character types, or toggled off before release
-LQS.toggle = function(player, val)
-    return true
-end
-
 local checkList =
 {
-    toggle = function(player, val)
-        return LQS.toggle(player, val)
-    end,
-
     eval = function(player, val)
         return val(player, val)
     end,
@@ -803,7 +802,7 @@ end
 -- LQS.dialog
 -----------------------------------
 LQS.dialog = function(obj)
-    return function(player, npc, tbl, var, step)
+    return function(player, npc, tbl, var, step, questName)
         -----------------------------------
         -- Player does not meet requirements
         -- Show default dialog or "fail" dialog
@@ -885,7 +884,7 @@ LQS.dialog = function(obj)
             -----------------------------------
             -- Reward handling
             -----------------------------------
-            if giveReward(player, reward) then
+            if giveReward(player, reward, questName) then
                 -- If the reward was succesfully given, advance the step
                 player:setCharVar(var, step)
 
@@ -931,7 +930,7 @@ end
 local function performTrade(obj, player, var, count, increment, items, multiple)
     if
         (obj.reward == nil and items == nil) or
-        (type(obj.reward) == "table" and giveReward(player, obj.reward)) or
+        (type(obj.reward) == "table" and giveReward(player, obj.reward, obj)) or
         npcUtil.giveItem(player, items or obj.reward, { multiple = multiple })
     then
         player:tradeComplete()
@@ -959,10 +958,6 @@ local function performTrade(obj, player, var, count, increment, items, multiple)
             LQS.questCompleted(player, obj.quest, false)
         elseif obj.mission ~= nil then
             LQS.newMission(player, obj.mission)
-        end
-
-        if obj.tally ~= nil then
-            player:incrementCharVar(obj.tally, count)
         end
 
         player:setLocalVar("[LQS]REWARD", 0)
@@ -1144,7 +1139,7 @@ LQS.trade = function(obj)
             local total = count
 
             if obj.tally ~= nil then
-                total = total + player:getCharVar(obj.tally)
+                player:incrementCharVar(obj.tally, count)
             end
 
             if npcUtil.tradeHasExactly(trade, obj.required) then
@@ -1961,7 +1956,7 @@ local function getStepFunctions(steps, name)
     return func
 end
 
-local getSteps = function(var, entity, steps, entities)
+local getSteps = function(var, entity, steps, entities, questName)
     local func = getStepFunctions(steps, entity.name)
 
     return function(player, npc)
@@ -1977,6 +1972,16 @@ local getSteps = function(var, entity, steps, entities)
         elseif entity.default ~= nil then
             defaultDialog = entity.default
         else
+            return
+        end
+
+        -- Check custom requirement overrides from quest registry
+        if
+            LQS.registry[questName] ~= nil and
+            LQS.registry[questName].check ~= nil and
+            not LQS.registry[questName].check(player)
+        then
+            LQS.event(player, npc, defaultDialog)
             return
         end
 
@@ -2008,12 +2013,12 @@ local getSteps = function(var, entity, steps, entities)
                         return
                     end
 
-                    func[step]["onTrigger"](player, npc, entity, var, step, entities)
+                    func[step]["onTrigger"](player, npc, entity, var, step, entities, questName)
                 else
                     LQS.event(player, npc, defaultDialog)
                 end
             else
-                func[step](player, npc, entity, var, step, entities)
+                func[step](player, npc, entity, var, step, entities, questName)
             end
         end
     end
@@ -2172,11 +2177,13 @@ end
 -- Entity load and reload
 -----------------------------------
 local function entitySetup(dynamicEntity, tbl, entity)
+    local questName = string.lower(tbl.info.name)
+
     if
         entity.type == xi.objType.NPC or
         entity.marker ~= nil
     then
-        dynamicEntity.onTrigger = getSteps(tbl.info.var, entity, tbl.steps, tbl.entities)
+        dynamicEntity.onTrigger = getSteps(tbl.info.var, entity, tbl.steps, tbl.entities, questName)
         dynamicEntity.onTrade   = getTradeSteps(tbl.info.var, entity, tbl.steps, tbl.entities)
 
     elseif entity.type == xi.objType.MOB then
@@ -2360,7 +2367,7 @@ LQS.add = function(source, tbl)
     -----------------------------------
     local registryName = string.lower(tbl.info.name)
 
-    LQS.registry[registryName] =
+    local entry =
     {
         name   = tbl.info.name,
         author = tbl.info.author,
@@ -2369,6 +2376,14 @@ LQS.add = function(source, tbl)
         hint   = {},
         reward = {},
     }
+
+    -- Reuse existing overrides to prevent them being wiped on reload
+    if LQS.registry[registryName] ~= nil then
+        entry.check = LQS.registry[registryName].check
+        entry.after = LQS.registry[registryName].after
+    end
+
+    LQS.registry[registryName] = entry
 
     local entityZone = {}
     local entityType = {}
