@@ -59,6 +59,16 @@ LQS.standardImmunities =
     xi.immunity.SILENCE,
 }
 
+-- Rates
+LQS.GUARANTEED  = 1000 -- 100%
+LQS.VERY_COMMON =  240 --  24%
+LQS.COMMON      =  150 --  15%
+LQS.UNCOMMON    =  100 --  10%
+LQS.RARE        =   50 --   5%
+LQS.VERY_RARE   =   10 --   1%
+LQS.SUPER_RARE  =    5 -- 0.5%
+LQS.ULTRA_RARE  =    1 -- 0.1%
+
 -----------------------------------
 -- Dynamic Entity Looks
 -----------------------------------
@@ -440,7 +450,6 @@ LQS.event = function(player, npc, tbl)
     -- Objects should not have NPC names
     if
         npc ~= nil and
-        tbl[1].noturn == nil and
         tbl[1].object == nil
     then
         npc:ceFace(player)
@@ -552,7 +561,7 @@ local function delaySendMenu(player, menu)
     end)
 end
 
-local function pickItem(items, mod)
+LQS.pickItem = function(items, mod)
     -- sum weights
     local sum = 0
     for i = 1, #items do
@@ -1021,8 +1030,9 @@ LQS.trade = function(obj)
 
             player:setLocalVar("[LQS]REWARD", 1)
 
+            local delay = LQS.eventDelay(obj.accepted)
+
             if not eventSpawn(obj, player, npc, obj.accepted) then
-                local delay = LQS.eventDelay(obj.accepted)
                 LQS.event(player, npc, obj.accepted)
             end
 
@@ -1138,12 +1148,12 @@ LQS.trade = function(obj)
             local count = trade:getItemCount()
             local total = count
 
-            if obj.tally ~= nil then
-                player:incrementCharVar(obj.tally, count)
-            end
-
             if npcUtil.tradeHasExactly(trade, obj.required) then
                 player:setLocalVar("[LQS]REWARD", 1)
+
+                if obj.tally ~= nil then
+                    player:incrementCharVar(obj.tally, count)
+                end
 
                 local delay = LQS.eventDelay(obj.accepted)
 

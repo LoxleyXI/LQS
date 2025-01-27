@@ -1,5 +1,5 @@
 -----------------------------------
--- Chasing Tails (Lv1)
+-- In Sheep's Clothing (Lv5)
 -----------------------------------
 -- Copyright (c) 2025 LoxleyXI
 --
@@ -18,101 +18,97 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see http://www.gnu.org/licenses/
 -----------------------------------
--- !setvar [LQS]CHASING_TALES 0
--- Shining Stone !pos 98.661 6.017 -17.552 234
--- !additem 926 12
--- Reward: 600 gil
+-- !setvar [LQS]SHEEPS_CLOTHING 0
+-- !setvar [LQS]SHEEPSKIN 0
+-- Chilly Wolf !pos -247.432 8.000 7.263 231
+-- !additem 505 3
+-- Rewards: 250g
 -----------------------------------
--- !setvar [LQS]CHASING_TALES 1
+-- !setvar [LQS]SHEEPS_CLOTHING 1
 -----------------------------------
-local m = Module:new("lqs_chasing_tails")
+local m = Module:new("lqs_in_sheeps_clothing")
 
 local info =
 {
-    name     = "Chasing Tales",
+    name     = "In Sheep's Clothing",
     author   = "Loxley",
-    var      = "[LQS]CHASING_TALES",
-    tally    = "[LQS]TAILS",
-    required =
-    {
-        item = { { 926, 12 } },
-        name = "a lizard tail",
-    },
+    var      = "[LQS]SHEEPS_CLOTHING",
+    tally    = "[LQS]SHEEPSKIN",
+    required = { { 505, 3 } }, -- Sheepskin x3
     reward   =
     {
-        gil = 600,
+        gil = 250,
     },
 }
 
-local ShiningStone = "Shining Stone"
+local ChillyWolf = "Chilly Wolf"
 
 LQS.add(m, {
     info     = info,
     entities =
     {
-        ["Bastok_Mines"] =
+        ["Northern_San_dOria"] =
         {
             {
-                name   = ShiningStone,
-                type   = xi.objType.NPC,
-                look   = LQS.look({
+                name = ChillyWolf,
+                type = xi.objType.NPC,
+                look = LQS.look({
                     race = xi.race.GALKA,
-                    face = LQS.face.B8,
-                    head = 119, -- Magnifying Spectacles
+                    face = LQS.face.B2,
+                    head = 0,
                     body = 20,
                     hand = 20,
                     legs = 20,
                     feet = 20,
+                    main = 2,
                 }),
-                pos    = { 98.661, 6.017, -17.552, 224 }, -- !pos 98.661 6.017 -17.552 234
-                dialog = { "Brewing potions is harder than it looks!" },
+                pos     = { -247.432, 8.000, 7.263, 222 }, -- !pos -247.432 8.000 7.263 231
+                default = { "So brrr~ cold..." },
             },
         },
     },
-    steps =
+    steps  =
     {
         {
-            [ShiningStone] = LQS.dialog({
+            check        = LQS.checks({ level = 5 }),
+            [ChillyWolf] = LQS.dialog({
                 quest = info.name,
                 event =
                 {
-                    "What? Never seen a Galkachemist before?",
-                    { emote = xi.emote.LAUGH },
-                    { delay = 2000 },
-                    "The truth is, I'm new here... and I keep forgetting my ingredients!",
-                    " It would really help me out if you brought twelve lizard tails.",
+                    { emote = xi.emote.STAGGER },
+                    "Ronfaure is so cold. I miss the blistering heat of Gustaberg.",
+                    " Get three sheepskin to warm me up and I'll pay for it.",
                 },
             })
         },
         {
-            [ShiningStone] =
+            [ChillyWolf] =
             {
                 onTrigger = LQS.dialog({
                     step  = false,
                     event =
                     {
-                        "It would really help me out if you brought twelve lizard tails.",
+                        "Get three sheepskin to warm me up and I'll pay for it.",
                     },
                 }),
                 onTrade = LQS.trade({
                     quest    = info.name,
-                    required = info.required.item,
-                    reward   = info.reward[1],
                     step     = false,
+                    required = info.required,
+                    reward   = info.reward,
                     tally    = info.tally,
                     declined =
                     {
-                        "It would really help me out if you brought twelve lizard tails.",
+                        "Get three sheepskin to warm me up and I'll pay for it.",
                     },
                     accepted =
                     {
-                        "Thanks! Now I can get back to work.",
-                        { emote = xi.emote.CHEER },
-                        { fmt = " So far, you've helped me brew {} potions.", var = info.tally },
-                        "Bring more lizard tails and I'll gladly do business again!",
+                        { emote = xi.emote.YES },
+                        { fmt = "That's better, but not enough. So far, I have {} sheepskins.", var = info.tally },
+                        " Get more sheepskins and I'll keep paying.",
                     },
                 }),
-            },
+            }
         },
     },
 })
