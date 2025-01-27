@@ -24,10 +24,48 @@ If you found this module helpful, please consider kindly supporting my other wor
 * Initialise your area using `LQS.add()` by following the examples provided in this repository
 * Ensure `lqs_util.cpp` is included in your modules and [clear the CMake cache](https://github.com/LandSandBoat/server/wiki/Module-Guide#cpp-modules) before [rebuilding the C++](https://github.com/LandSandBoat/server/wiki/Quick-Start-Guide)
 
+## Questpack
+LQS now comes bundled with Questpack, providing new quests to kick start your experience. Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards.
+
+* Aht Urhgan: Insult to Gingery, Pecking Battles
+* Bastok: Bird Search, Bug Report, Chasing Tails, Mining My Business
+* Other Areas: Here Be Dragons, Likely Tails
+
 ## Simple Example
 
 ## Step Functions
 ### LQS.dialog
+Dialog steps are the foundation of any quest, each dialog includes an event table and optional parameters, such as quest name to trigger the "Quest Accepted" message or reward to trigger the "Quest Completed" message and distribute rewards.
+* Event tables consist of strings and tables containing many different functions
+* Dialog is automatically assigned to the current NPC unless a spawn is specified
+* The assigned NPC will turn to the player during dialog and reset position following
+* Spawners will disappear during dialog and respawn after
+* Events are sent directly to the target player, the only one who sees NPCs move, emote or spawners altering state
+```lua
+            ["Entity Name"] = LQS.dialog({
+                -- (Optional)
+                check  = { level = 5 },
+
+                -- (Optional) Setting this will give players the "Quest Accepted" message after the dialog completes
+                quest  = "Quest Name",
+
+                 -- (Optional) Setting this will complete the quest after the dialog completes
+                reward = { item = xi.item.CHUNK_OF_ROCK_SALT, gil = 100 },
+
+                -- (Optional) Set the NPC's name here if the entity is a spawner
+                spawn  = "NPC Name",
+
+                -- (Optional) Include if this should not increment the quest step, ie. reminder dialog
+                step   = false,
+
+                -- (Required)
+                event  =
+                {
+                    "Test message",
+                    { emote = xi.emote.THINK },
+                },
+            }),
+```
 ### LQS.trade
 ### LQS.menu
 ### LQS.shop
