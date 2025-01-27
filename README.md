@@ -9,6 +9,7 @@ If you found this module helpful, please consider kindly supporting my other wor
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/loxleygames)
 
 ## Features
+* **LQS now comes bundled with Questpack, providing 20+ new quests to kick start your experience.**
 * Fully scriptable dialog events with NPC animations and simulated cutscenes
 * Flexible item trading system offers endless possibilities
 * Mob encounters featuring spawn requirements, level caps and other restrictions
@@ -25,13 +26,13 @@ If you found this module helpful, please consider kindly supporting my other wor
 * Ensure `lqs_util.cpp` is included in your modules and [clear the CMake cache](https://github.com/LandSandBoat/server/wiki/Module-Guide#cpp-modules) before [rebuilding the C++](https://github.com/LandSandBoat/server/wiki/Quick-Start-Guide)
 
 ## Questpack
-LQS now comes bundled with Questpack, providing new quests to kick start your experience. Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards.
+**LQS now comes bundled with Questpack, providing 20+ new quests to kick start your experience.** Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards.
 
-* Aht Urhgan: Insult to Gingery, Pecking Battles
-* Bastok: Bird Search, Bug Report, Chasing Tails, Mining My Business
-* Other Areas: Here Be Dragons, Likely Tails
-
-## Simple Example
+* San d'Oria (5): Hatchet Job, Hungry Customer, In Sheep's Clothing, Rambling Around, Staying Afloat
+* Bastok (5): Bird Search, Bug Report, Chasing Tails, Mining My Business, That's All Folks
+* Windurst (5): Down to Earth, Neck and Neck, Only the Dose, Reaping Rewards, Rustling Feathers
+* Other Areas (3): Head First, Here Be Dragons, Likely Tails
+* Aht Urhgan (2): Insult to Gingery, Pecking Battles
 
 ## Step Functions
 ### LQS.dialog
