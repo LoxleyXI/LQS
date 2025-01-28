@@ -114,46 +114,59 @@ Dialog steps are the foundation of any quest, each dialog includes an event tabl
 ### LQS.trade
 Trade steps advance the quest or provide rewards in exchange for requested items. By setting `step = false`, repeatable quests can be created and the `tally` parameter can be used to keep track of the total trades, eg. for dialog.
 ```lua
-["Entity Name"] = LQS.trade({
-    -- (Optional) Gate this step with optional requirements
-    check = { level = 5 },
-
-    -- (Optional) The required items
-    required = { { xi.item.CHUNK_OF_ROCK_SALT, 12 } },
-
-    -- (Optional) A table of rarity sorted results can be used instead of the `required` parameter, allowing multiple different types of items to be exchanged
-    exchange =
-    {
-        [xi.item.CHUNK_OF_ROCK_SALT] =
+["Entity Name"] =
+{
+    -- When sharing a step with a trade handler, onTrigger events must be assigned to the table
+    onTrigger = LQS.dialog({
+        step  = false,
+        event =
         {
-            { LQS.COMMON,   CHUNK_OF_COPPER_ORE, "a chunk of copper ore" }, --  (15%)
-            { LQS.UNCOMMON, CHUNK_OF_ZINC_ORE,   "a chunk of zinc ore"   }, --  (10%)
-            { LQS.RARE,     CHUNK_OF_GOLD_ORE,   "a chunk of gold ore"   }, --  ( 5%)
+            "Remember the thing I asked you to get for me?"
         },
-    },
+    }),
 
-    -- (Optional) Setting this will give players the "Quest Accepted" message after the dialog completes
-    quest = "Quest Name",
+    -- Trade handlers must be assigned to the onTrade parameter of a table in the entity's current step
+    onTrade = LQS.trade({
+        -- (Optional) Gate this step with optional requirements
+        check = { level = 5 },
 
-     -- (Optional) Setting this will complete the quest after the dialog completes
-    reward = { gil = 250 },
+        -- (Optional) The required items
+        required = { { xi.item.CHUNK_OF_ROCK_SALT, 12 } },
 
-    -- (Optional) Include if this should not increment the quest step, ie. reminder dialog
-    step = false,
+        -- (Optional) A table of rarity sorted results can be used instead of the `required` parameter, allowing multiple different types of items to be exchanged
+        exchange =
+        {
+            [xi.item.CHUNK_OF_ROCK_SALT] =
+            {
+                { LQS.COMMON,   CHUNK_OF_COPPER_ORE, "a chunk of copper ore" }, --  (15%)
+                { LQS.UNCOMMON, CHUNK_OF_ZINC_ORE,   "a chunk of zinc ore"   }, --  (10%)
+                { LQS.RARE,     CHUNK_OF_GOLD_ORE,   "a chunk of gold ore"   }, --  ( 5%)
+            },
+        },
 
-    -- (Optional) Character variable to store a tally for the total number of items accepted
-    tally = "[LQS]VAR_NAME",
+        -- (Optional) Setting this will give players the "Quest Accepted" message after the dialog completes
+        quest = "Quest Name",
 
-    -- (Required) This event table will be played if the player brings incorrect items
-    declined  =
-    {
-        "This isn't what I wanted.",
-    },
+         -- (Optional) Setting this will complete the quest after the dialog completes
+        reward = { gil = 250 },
 
-    -- (Required) This event table will be played if the player brings the correct items
-    accepted  =
-    {
-        "Thanks for bringing me this item, here's your reward",
+        -- (Optional) Include if this should not increment the quest step, ie. reminder dialog
+        step = false,
+
+        -- (Optional) Character variable to store a tally for the total number of items accepted
+        tally = "[LQS]VAR_NAME",
+
+        -- (Required) This event table will be played if the player brings incorrect items
+        declined  =
+        {
+            "This isn't what I wanted.",
+        },
+
+        -- (Required) This event table will be played if the player brings the correct items
+        accepted  =
+        {
+            "Thanks for bringing me this item, here's your reward",
+        },
     },
 }),
 ```
