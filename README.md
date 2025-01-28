@@ -41,7 +41,7 @@ local m = Module:new("lqs_example")
 
 local info =
 {
-    name   = "Example",
+    name   = "Simple Quest",
     author = "Loxley",
     var    = "[LQS]EXAMPLE",
 }
