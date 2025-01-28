@@ -34,6 +34,59 @@ If you found this module helpful, please consider kindly supporting my other wor
 * Other Areas **(3)**: Head First, Here Be Dragons, Likely Tails
 * Aht Urhgan **(2)**: Insult to Gingery, Pecking Battles
 
+## Simple Example
+The following is a minimal example to get started building quests in LQS. For a more complete example, see: [Here be Dragons](https://github.com/LoxleyXI/LQS/blob/main/questpack/other_areas/lqs_here_be_dragons.lua)
+```lua
+local m = Module:new("lqs_example")
+
+local info =
+{
+    name   = "Example",
+    author = "Loxley",
+    var    = "[LQS]EXAMPLE",
+}
+
+local Example = "Example"
+
+LQS.add(m, {
+    info     = info,
+    entities =
+    {
+        ["Upper_Jeuno"] =
+        {
+            {
+                name = Example,
+                type = xi.objType.NPC,
+                look = LQS.look({
+                    race = xi.race.HUME_M,
+                    face = LQS.face.A1,
+                    body = 21,
+                }),
+                pos = { -3.276, -0.000, 25.295, 106 }, -- !pos -3.276 -0.000 25.295 244
+            },
+        },
+    },
+    steps =
+    {
+        {
+            [Example] = LQS.dialog({
+                quest  = info.name,
+                reward = xi.item.CHUNK_OF_ROCK_SALT,
+                step   = false, -- Prevent quest advancing
+                event  =
+                {
+                    "Hello,",
+                    { emote = xi.emote.WAVE },
+                    " Welcome to the example quest.",
+                },
+            }),
+        },
+    },
+})
+
+return m
+```
+
 ## Utilities
 ### LQS.event
 Event tables are core to LQS and allow endless possibilities for scripting custom events for each quest step. Thanks to the LQS namespace, `LQS.event` can actually be utilised in other modules, offering enhanced interactions for all custom content. All events are handled per player and due to being sent packets directly, no other players will see the NPCs or their movements.
