@@ -20,9 +20,9 @@ If you found this module helpful, please consider kindly supporting my other wor
 (ie. You can update NPCs or implement new quest steps without any need for a server restart!)
 
 ## Setup
-* `LQS.lua` must be located inside `modules/` but does not need to be loaded by `init.txt`
-* Each new area must include a reference to `LQS.lua`, for example `local LQS = require('modules/lib/LQS')`
-* Initialise your area using `LQS.add()` by following the examples provided in this repository
+* `LQS.lua` must be located inside `modules/` and included to `init.txt` before any of your quests
+* Also include `questpack` inside `init.txt` to load the provided additional quests
+* Initialise your new quests using `LQS.add()`, following the examples provided in this repository
 * Ensure `lqs_util.cpp` is included in your modules and [clear the CMake cache](https://github.com/LandSandBoat/server/wiki/Module-Guide#cpp-modules) before [rebuilding the C++](https://github.com/LandSandBoat/server/wiki/Quick-Start-Guide)
 
 ## Questpack
@@ -33,6 +33,49 @@ If you found this module helpful, please consider kindly supporting my other wor
 * Windurst **(5)**: Down to Earth, Neck and Neck, Only the Dose, Reaping Rewards, Rustling Feathers
 * Other Areas **(3)**: Head First, Here Be Dragons, Likely Tails
 * Aht Urhgan **(2)**: Insult to Gingery, Pecking Battles
+
+## Utilities
+### LQS.event
+Event tables are core to LQS and allow endless possibilities for scripting custom events for each quest step. Thanks to the LQS namespace, `LQS.event` can actually be utilised in other modules, offering enhanced interactions for all custom content. All events are handled per player and due to being sent packets directly, no other players will see the NPCs or their movements.
+
+```lua
+LQS.event(player, npc {
+    "Hello there, messages are usually prefixed with the NPC's name, just like regular in-game dialog.", -- Eg. Name : Hello there...
+    " Rows that start with indentation will also skip the NPC's name.", -- Eg.  Rows that start...
+    { face         = "player", entity = "Name"                         }, -- Turn event trigger NPC to face player, specify entity name to turn a different NPC
+    { removeEffect = xi.effect.LEVEL_RESTRICTION                       }, -- Remove a status effect from the player
+    { charvar      = "[LQS]VAR_NAME", value = 10                       }, -- Set a character variable
+    { setcostume   = 123                                               }, -- Set costume for the player
+    { message      = "Test message"                                    }, -- Present a gold coloured system message
+    { emotion      = "claps very loudly.", name = "Name"               }, -- Present a purple coloured emote message from "name"
+    { special      = 123                                               }, -- Present a messageSpecial corresponding to the provided message ID
+    { music        = 123                                               }, -- Update the player's current music ID, useful for creating impactful cutscenes
+    { pos          = { 1, 1, 1, 0 }                                    }, -- Update the player's current position
+    { packet       = "open", entity = "Treasure Chest"                 }, -- Send a named entity packet to the specified NPC
+    { animate      = 251, mode = 4, entity = "Name", target = "player" }, -- Send an independent animation packet for the NPC (eg. Hearts animation), target optional
+    { emote        = xi.emote.TOSS, entity = "Name/player"             }, -- Send an emote from the specified NPC, entity name optional
+    { spawn        = { "One", "Two", "Three" }                         }, -- Spawn the specified entities for this player
+    { despawn      = { "One", "Two", "Three" }                         }, -- Despawn the specified entities for this player
+    { glimpse      = { 3000, { "One", "Two", "Three" } }               }, -- Briefly spawn then despawn the specified entities for this player after the given duration
+})
+```
+
+### LQS.look
+The look utility provides an easy interface to create unique NPC looks without needing to manually convert each model ID into a little endian byte string (eg. `"0x01000F020010032008300A400850006000700000"`). Model IDs can be found as an MId in [LSB's `item_equipment.sql`](https://github.com/LandSandBoat/server/blob/base/sql/item_equipment.sql)
+
+```lua
+LQS.look({
+    race = xi.race.ELVAAN_F,
+    face = LQS.face.B2,
+    head = 0,
+    body = 6,
+    hand = 6,
+    legs = 6,
+    feet = 6,
+    main = 0,
+    offh = 0,
+})
+```
 
 ## Step Functions
 ### LQS.dialog
