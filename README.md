@@ -26,7 +26,7 @@ If you found this module helpful, please consider kindly supporting my other wor
 * Ensure `lqs_util.cpp` is included in your modules and [clear the CMake cache](https://github.com/LandSandBoat/server/wiki/Module-Guide#cpp-modules) before [rebuilding the C++](https://github.com/LandSandBoat/server/wiki/Quick-Start-Guide)
 
 ## Questpack
-**LQS now comes bundled with Questpack, providing 20+ new quests to experience.** Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards.
+**LQS now comes bundled with Questpack, providing 20+ new quests to experience.** Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards. These quests are designed to better balance the starting areas and provide meaningful content for new players to complete at the start of their journey.
 
 * San d'Oria **(5)**: Hatchet Job, Hungry Customer, In Sheep's Clothing, Rambling Around, Staying Afloat
 * Bastok **(5)**: Bird Search, Bug Report, Chasing Tails, Mining My Business, That's All Folks
@@ -35,7 +35,9 @@ If you found this module helpful, please consider kindly supporting my other wor
 * Aht Urhgan **(2)**: Insult to Gingery, Pecking Battles
 
 ## Simple Example
-The following is a minimal example to get started building quests in LQS. For a more complete example, see: [Here be Dragons](https://github.com/LoxleyXI/LQS/blob/main/questpack/other_areas/lqs_here_be_dragons.lua)
+The following is a minimal example to get started building quests in LQS.
+
+(For a more complete example, see: [Here be Dragons](https://github.com/LoxleyXI/LQS/blob/main/questpack/other_areas/lqs_here_be_dragons.lua))
 ```lua
 local m = Module:new("lqs_example")
 
