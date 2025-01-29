@@ -9,13 +9,13 @@ If you found this module helpful, please consider kindly supporting my other wor
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/loxleygames)
 
 ## Features
-* **LQS now comes bundled with Questpack, providing 20+ new quests to kick start your experience.**
+* **LQS now comes bundled with Questpack, providing 20+ new quests to experience**
 * Fully scriptable dialog events with NPC animations and simulated cutscenes
 * Flexible item trading system offers endless possibilities
 * Mob encounters featuring spawn requirements, level caps and other restrictions
 * NPC look/model utility functions allow easy creation of any appearance
 * Each step can be gated by any number of requirements
-* Custom quest tracker and "quest accepted/complete" sound effects
+* Custom quest tracker with a new `!quest` command providing quest info and hints
 * Quests are fully reloadable and will refresh simply by saving the file
 (ie. You can update NPCs or implement new quest steps without any need for a server restart!)
 
@@ -26,7 +26,7 @@ If you found this module helpful, please consider kindly supporting my other wor
 * Ensure `lqs_util.cpp` is included in your modules and [clear the CMake cache](https://github.com/LandSandBoat/server/wiki/Module-Guide#cpp-modules) before [rebuilding the C++](https://github.com/LandSandBoat/server/wiki/Quick-Start-Guide)
 
 ## Questpack
-**LQS now comes bundled with Questpack, providing 20+ new quests to kick start your experience.** Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards.
+**LQS now comes bundled with Questpack, providing 20+ new quests to experience.** Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards.
 
 * San d'Oria **(5)**: Hatchet Job, Hungry Customer, In Sheep's Clothing, Rambling Around, Staying Afloat
 * Bastok **(5)**: Bird Search, Bug Report, Chasing Tails, Mining My Business, That's All Folks
@@ -39,17 +39,16 @@ The following is a minimal example to get started building quests in LQS. For a 
 ```lua
 local m = Module:new("lqs_example")
 
-local info =
-{
-    name   = "Simple Quest",
-    author = "Loxley",
-    var    = "[LQS]EXAMPLE",
-}
-
-local Example = "Example"
+local SimpleQuest = "Simple Quest"
+local Example     = "Example"
 
 LQS.add(m, {
-    info     = info,
+    info     =
+    {
+        name   = SimpleQuest,
+        author = "Loxley",
+        var    = "[LQS]EXAMPLE",
+    },
     entities =
     {
         ["Upper_Jeuno"] =
@@ -70,7 +69,7 @@ LQS.add(m, {
     {
         {
             [Example] = LQS.dialog({
-                quest  = info.name,
+                quest  = SimpleQuest,
                 reward = xi.item.CHUNK_OF_ROCK_SALT,
                 step   = false, -- Prevent quest advancing
                 event  =
