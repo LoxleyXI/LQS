@@ -16,7 +16,8 @@ If you found this module helpful, please consider kindly supporting my other wor
 * NPC look/model utility functions allow easy creation of any appearance
 * Each step can be gated by any number of requirements
 * Custom quest tracker with a new `!quest` command providing quest info and hints
-* Quests are fully reloadable and will refresh simply by saving the file
+* LQS Quest modules are fully reloadable and will refresh simply by saving the file
+
 (ie. You can update NPCs or implement new quest steps without any need for a server restart!)
 
 ## Setup
