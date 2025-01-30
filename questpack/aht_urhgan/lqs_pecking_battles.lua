@@ -138,6 +138,7 @@ LQS.add(m, {
                 }),
                 onTrade = LQS.trade({
                     quest    = info.name,
+                    step     = false,
                     required = info.required[2],
                     reward   = info.reward[2],
                     tally    = info.tally,

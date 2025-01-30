@@ -57,7 +57,11 @@ commandObj.onTrigger = function(player, str)
 
             for index, rewardInfo in pairs(questInfo.reward) do
                 if rewardInfo.item ~= nil then
-                    str = str .. getItemName(rewardInfo.item)
+                    if type(rewardInfo.item) == "table" then
+                        str = str .. getItemName(rewardInfo.item[1][1]) .. " x" .. rewardInfo.item[1][2]
+                    else
+                        str = str .. getItemName(rewardInfo.item)
+                    end
 
                     if rewardInfo.augment ~= nil then
                         str = str .. " (Augmented)"
@@ -89,17 +93,18 @@ commandObj.onTrigger = function(player, str)
     end
 
     local accepted  = {}
+    local available = {}
     local completed = {}
 
     for questName, questInfo in pairs(LQS.registry) do
         local status = player:getCharVar(questInfo.var) + 1
 
-        if status > 0 then
-            if status >= questInfo.finish then
-                table.insert(completed, fmt("\129\159 {} ({}/{})", questInfo.name, status, questInfo.finish))
-            else
-                table.insert(accepted,  fmt("\129\158 {} ({}/{})", questInfo.name, status, questInfo.finish))
-            end
+        if status == 1 then
+            table.insert(available, fmt("\129\158 {} ({}/{})", questInfo.name, status, questInfo.finish))
+        elseif status >= questInfo.finish then
+            table.insert(completed, fmt("\129\159 {} ({}/{})", questInfo.name, status, questInfo.finish))
+        else
+            table.insert(accepted,  fmt("\129\158 {} ({}/{})", questInfo.name, status, questInfo.finish))
         end
     end
 
@@ -107,6 +112,14 @@ commandObj.onTrigger = function(player, str)
         player:fmt("=== Quests accepted ===")
 
         for _, row in pairs(accepted) do
+            player:fmt(row)
+        end
+    end
+
+    if #available > 0 then
+        player:fmt("=== Quests available ===")
+
+        for _, row in pairs(available) do
             player:fmt(row)
         end
     end
