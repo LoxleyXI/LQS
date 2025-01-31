@@ -24,6 +24,7 @@ If you found this module helpful, please consider kindly supporting my other wor
 * `LQS.lua` must be located inside `modules/` and included to `init.txt` before any of your quests
 * Also include `questpack` inside `init.txt` to load the provided additional quests
 * Initialise your new quests using `LQS.add()`, following the examples provided in this repository
+* Save time by using my [`pos` Ashita Addon](https://github.com/LoxleyXI/ashita-addons) to copy NPC/Mob positions straight to the clipboard
 * Ensure `lqs_util.cpp` is included in your modules and [clear the CMake cache](https://github.com/LandSandBoat/server/wiki/Module-Guide#cpp-modules) before [rebuilding the C++](https://github.com/LandSandBoat/server/wiki/Quick-Start-Guide)
 
 ## Questpack
