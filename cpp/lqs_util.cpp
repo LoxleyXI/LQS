@@ -24,10 +24,13 @@
 #include "common/lua.h"
 #include "map/utils/charutils.h"
 #include "map/utils/itemutils.h"
+#include "map/item_container.h"
+#include "map/trade_container.h"
 
 #include "map/lua/lua_baseentity.h"
 #include "map/packets/char_emotion.h"
 #include "map/packets/independent_animation.h"
+#include "map/packets/inventory_finish.h"
 #include "map/packets/entity_animation.h"
 #include "map/packets/chat_message.h"
 
@@ -56,6 +59,9 @@ class LqsUtilModule : public CPPModule
     {
         TracyZoneScoped;
 
+        /************************************************************************
+        * Utilities
+        *************************************************************************/
         lua["CBaseEntity"]["fmt"] = [this](CLuaBaseEntity* PLuaBaseEntity, std::string const& message, sol::variadic_args va) -> void
         {
             CBaseEntity* PEntity = PLuaBaseEntity->GetBaseEntity();
@@ -80,6 +86,32 @@ class LqsUtilModule : public CPPModule
 
             CCharEntity* PChar = (CCharEntity*)PEntity;
             PChar->pushPacket<CChatMessagePacket>(PChar, MESSAGE_SYSTEM_3, lua_fmt(message, va).c_str(), "");
+        };
+
+        lua["CBaseEntity"]["tradeRelease"] = [this](CLuaBaseEntity* PLuaBaseEntity) -> void
+        {
+            CBaseEntity* PEntity = PLuaBaseEntity->GetBaseEntity();
+
+            if (PEntity->objtype != TYPE_PC)
+            {
+                return;
+            }
+
+            CCharEntity* PChar = (CCharEntity*)PEntity;
+
+            for (uint8 slotID = 0; slotID < TRADE_CONTAINER_SIZE; ++slotID)
+            {
+                if (PChar->TradeContainer->getInvSlotID(slotID) != 0xFF)
+                {
+                    CItem* PItem = PChar->TradeContainer->getItem(slotID);
+                    if (PItem)
+                    {
+                        PItem->setReserve(0);
+                    }
+                }
+            }
+            PChar->TradeContainer->Clean();
+            PChar->pushPacket<CInventoryFinishPacket>();
         };
 
         lua["CBaseEntity"]["canObtainItem"] = [this](CLuaBaseEntity* PLuaBaseEntity, uint16 itemID) -> bool
