@@ -50,9 +50,9 @@ LQS.add(m, {
             {
                 name   = IronDigger,
                 type   = xi.objType.NPC,
-                look   = cexi.util.look({
+                look   = LQS.look({
                     race = xi.race.GALKA,
-                    face = cexi.face.B1,
+                    face = LQS.face.B1,
                     head = 15,
                     body = 15,
                     hand = 8,
