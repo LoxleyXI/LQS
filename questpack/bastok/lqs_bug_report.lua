@@ -73,7 +73,6 @@ LQS.add(m, {
     steps =
     {
         {
-            check = LQS.checks({ toggle = true }),
             [Bardus] = LQS.dialog({
                 quest = info.name,
                 event =
