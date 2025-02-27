@@ -69,7 +69,7 @@ LQS.add(m, {
     steps =
     {
         {
-            check     = LQS.checks({ toggle = true, level = 5 }),
+            check     = LQS.checks({ level = 5 }),
             [Neavias] = LQS.dialog({
                 quest = info.name,
                 event =
@@ -97,6 +97,7 @@ LQS.add(m, {
                     step     = false,
                     required = info.required,
                     reward   = info.reward,
+                    tally    = info.tally,
                     declined =
                     {
                         "Remember, it's four bird feathers at a time.",
