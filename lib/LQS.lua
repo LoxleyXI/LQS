@@ -634,6 +634,292 @@ local function hideNPC(npc)
 end
 
 -----------------------------------
+-- Encounter utils
+-----------------------------------
+local function setEncounter(entity, params)
+    local flags = xi.effectFlag.DEATH + xi.effectFlag.ON_ZONE
+
+    if params.raiseAllowed ~= nil then
+        flags = xi.effectFlag.ON_ZONE
+    end
+
+    entity:addStatusEffectEx(
+        xi.effect.LEVEL_RESTRICTION,
+        xi.effect.LEVEL_RESTRICTION,
+        params.levelCap,
+        0,
+        0,
+        0,
+        0,
+        0,
+        flags + xi.effectFlag.CONFRONTATION
+    )
+
+    if params.subjob ~= nil and params.subjob == false then
+        entity:addStatusEffectEx(
+            xi.effect.SJ_RESTRICTION,
+            xi.effect.SJ_RESTRICTION,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            flags
+        )
+    end
+end
+
+local levelCaps =
+{
+    16, -- Promyvion - Holla
+    18, -- Promyvion - Dem
+    20, -- Promyvion - Mea
+    22, -- Promyvion-Vahzl
+    28, -- Sacrarium
+    29, -- Riverne Site B01
+    30, -- Riverne Site A01
+}
+
+local function isLevelCappedZone(zoneID)
+    for k, v in pairs(levelCaps) do
+        if v == zoneID then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function removeLevelCap(player)
+    local zoneID   = player:getZoneID()
+
+    -- Prevent removing level restriction inside intentionally capped areas
+    if isLevelCappedZone(zoneID) then
+        return
+    end
+
+    local alliance = player:getAlliance()
+
+    for i = 1, #alliance do
+        if alliance[i]:getZoneID() == zoneID then
+            alliance[i]:delStatusEffect(xi.effect.LEVEL_RESTRICTION)
+
+            local pet = alliance[i]:getPet()
+
+            if pet ~= nil then
+                pet:delStatusEffect(xi.effect.LEVEL_RESTRICTION)
+            end
+        end
+    end
+end
+
+local function allPlayers(player, func)
+    local zoneID   = player:getZoneID()
+    local alliance = player:getAlliance()
+
+    for i = 1, #alliance do
+        if
+            alliance[i]:isPC() and
+            alliance[i]:getZoneID() == zoneID
+        then
+            func(alliance[i])
+        end
+    end
+end
+
+local function applyLevelCap(player, params)
+    if
+        params ~= nil and
+        params.levelCap ~= nil
+    then
+        local zoneID   = player:getZoneID()
+        local alliance = player:getAlliance()
+
+        for i = 1, #alliance do
+            if alliance[i]:getZoneID() == zoneID then
+                setEncounter(alliance[i], params)
+
+                local pet = alliance[i]:getPet()
+
+                if pet ~= nil then
+                    setEncounter(pet, params)
+                end
+            end
+        end
+    end
+end
+
+local function spawnMob(player, npc, entities, mobName, params)
+    local zone     = player:getZone()
+    local zoneName = player:getZoneName()
+    local mobInfo  = getEntityInfo(entities[zoneName], mobName)
+    local result   = zone:queryEntitiesByName("DE_" .. mobName)
+
+    for _, mob in pairs(result) do
+        if mob ~= nil and not mob:isAlive() then
+            if
+                params ~= nil and
+                params.setPos ~= nil
+            then
+                mob:setSpawn(params.setPos.x, params.setPos.y, params.setPos.z, params.setPos.rotation)
+            else
+                mob:setSpawn(mobInfo.pos[1], mobInfo.pos[2], mobInfo.pos[3], mobInfo.pos[4])
+            end
+
+            if mobInfo.dropID then
+                mob:setDropID(mobInfo.dropID)
+            else
+                mob:setDropID(0)
+            end
+
+            local spawnLevel = mobInfo.level
+
+            if
+                params ~= nil and
+                params.scaleVar ~= nil
+            then
+                local scaling = player:getCharVar(params.scaleVar)
+                spawnLevel    = spawnLevel + scaling
+            end
+
+            mob:spawn()
+            mob:setMobLevel(spawnLevel)
+            mob:updateClaim(player)
+            mob:setLocalVar("NO_CASKET", 1)
+
+
+            -- Apply enmity to party, preventing despawn on spawner death
+            local alliance = player:getAlliance()
+
+            if
+                alliance ~= nil and
+                #alliance > 1
+            then
+                for _, member in pairs(alliance) do
+                    mob:addEnmity(member, 1, 0)
+                end
+            end
+
+            -- Quest mobs should not respawn
+            mob:setRespawnTime(0)
+            DisallowRespawn(mob:getID(), true)
+
+            if mobInfo.mods ~= nil then
+                for mod, value in pairs(mobInfo.mods) do
+                    mob:setMod(mod, value)
+                end
+            end
+
+            if mobInfo.effects ~= nil then
+                for effectID, effectTable in pairs(mobInfo.effects) do
+                    mob:addStatusEffect(effectID, unpack(effectTable))
+                end
+            end
+
+            -- Correct HP value based on mob params
+            mob:setHP(mob:getMaxHP())
+            mob:updateHealth()
+
+            if mobInfo.hp ~= nil then
+                local mobHP = mob:getMaxHP()
+                local hpp   = math.max(math.ceil((mobInfo.hp / mobHP) * 100) - 100, 0)
+                mob:addMod(xi.mod.HPP, hpp)
+                mob:updateHealth()
+                mob:setHP(mob:getMaxHP())
+            end
+
+            if params ~= nil then
+                if params.levelCap ~= nil then
+                    -- Draw-In was moved to Lua mixin:
+                    -- https://github.com/LandSandBoat/server/pull/6566
+                    g_mixins.draw_in(mob)
+                    setEncounter(mob, params)
+                end
+
+                if params.nextPos ~= nil then
+                    local pos = params.nextPos[math.random(1, #params.nextPos)]
+                    npc:setPos(unpack(pos))
+                end
+            end
+        end
+    end
+end
+
+local function mobsAlive(player, mobName)
+    local zone   = player:getZone()
+    local result = zone:queryEntitiesByName("DE_" .. mobName)
+
+    for _, mob in pairs(result) do
+        if
+            mob ~= nil and
+            mob:isAlive()
+        then
+            player:sys("An encounter is already in progress.")
+            return true
+        end
+    end
+
+    return false
+end
+
+local function delaySpawn(player, npc, delay, mobs, entities, hideSpawner, params)
+    if type(mobs) == "table" then
+        for _, mobName in pairs(mobs) do
+            if mobsAlive(player, mobName) then
+                return false
+            end
+        end
+    else
+        if mobsAlive(player, mobs) then
+            return false
+        end
+    end
+
+    -- TODO: Can these be moved to checks?
+    if params ~= nil then
+        if
+            params.partySize ~= nil and
+            player:getPartySize() > params.partySize
+        then
+            player:sys("Your party is too large to begin this encounter.")
+            return false
+        end
+
+        if
+            params.job ~= nil and
+            player:getMainJob() ~= params.job
+        then
+            player:sys("Your job is incorrect for this encounter.")
+            return false
+        end
+    end
+
+    -- Only skip this if hideSpawner is false
+    if
+        ((params == nil or params.nextPos == nil) and
+        hideSpawner == nil) or
+        hideSpawner
+    then
+        hideNPC(npc)
+    end
+
+    applyLevelCap(player, params)
+
+    npc:timer(delay, function(npcArg)
+        if type(mobs) == "table" then
+            for _, mobName in pairs(mobs) do
+                spawnMob(player, npc, entities, mobName, params)
+            end
+        else
+            spawnMob(player, npc, entities, mobs, params)
+        end
+    end)
+
+    return true
+end
+
+-----------------------------------
 -- Reward utils
 -----------------------------------
 local function giveReward(player, reward, questName)
@@ -976,7 +1262,7 @@ local function performTrade(obj, player, var, count, increment, items, multiple)
 end
 
 LQS.trade = function(obj)
-    return function(player, npc, trade, entity, var, step)
+    return function(player, npc, trade, entity, var, step, tbl)
         if player:getLocalVar("[LQS]REWARD") == 1 then
             return
         end
@@ -1157,12 +1443,55 @@ LQS.trade = function(obj)
 
                 local delay = LQS.eventDelay(obj.accepted)
 
-                if not eventSpawn(obj, player, npc, obj.accepted) then
+                if
+                    obj.spawn == nil or
+                    type(obj.spawn) == "table" or
+                    not eventSpawn(obj, player, npc, obj.accepted)
+                then
                     LQS.event(player, npc, obj.accepted)
                 end
 
                 player:timer(delay, function(playerArg)
                     performTrade(obj, player, var, count)
+
+                    if obj.spawn ~= nil then
+                        if obj.flag ~= nil then
+                            player:setLocalVar(obj.flag, 1)
+                        end
+
+                        local mobs = obj.spawn
+
+                        if obj.spawn.hq ~= nil then
+                            mobs = { obj.spawn.nq }
+
+                            if math.random(0, 100) < obj.spawn.rate then
+                                mobs = { obj.spawn.hq }
+                            end
+                        end
+
+                        for _, mobName in pairs(mobs) do
+                            if delaySpawn(player, npc, 0, mobs, tbl, true, {
+                                setPos       = npc:getPos(),
+                                nextPos      = obj.nextPos,
+                                levelCap     = obj.levelCap,
+                                raiseAllowed = obj.raiseAllowed,
+                                partySize    = obj.partySize,
+                                scaleVar     = obj.scaleVar,
+                            }) then
+                                if obj.setVar ~= nil then
+                                    for _, varInfo in pairs(obj.setVar) do
+                                        player:setCharVar(varInfo[1], varInfo[2])
+                                    end
+                                end
+                            end
+
+                            if obj.setVarAll ~= nil then
+                                allPlayers(player, function(member)
+                                    member:setCharVar(obj.setVarAll[1], obj.setVarAll[2])
+                                end)
+                            end
+                        end
+                    end
                 end)
 
                 return
@@ -1178,289 +1507,6 @@ end
 -----------------------------------
 -- LQS.menu
 -----------------------------------
-local function setEncounter(entity, params)
-    local flags = xi.effectFlag.DEATH + xi.effectFlag.ON_ZONE
-
-    if params.raiseAllowed ~= nil then
-        flags = xi.effectFlag.ON_ZONE
-    end
-
-    entity:addStatusEffectEx(
-        xi.effect.LEVEL_RESTRICTION,
-        xi.effect.LEVEL_RESTRICTION,
-        params.levelCap,
-        0,
-        0,
-        0,
-        0,
-        0,
-        flags + xi.effectFlag.CONFRONTATION
-    )
-
-    if params.subjob ~= nil and params.subjob == false then
-        entity:addStatusEffectEx(
-            xi.effect.SJ_RESTRICTION,
-            xi.effect.SJ_RESTRICTION,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            flags
-        )
-    end
-end
-
-local levelCaps =
-{
-    16, -- Promyvion - Holla
-    18, -- Promyvion - Dem
-    20, -- Promyvion - Mea
-    22, -- Promyvion-Vahzl
-    28, -- Sacrarium
-    29, -- Riverne Site B01
-    30, -- Riverne Site A01
-}
-
-local function isLevelCappedZone(zoneID)
-    for k, v in pairs(levelCaps) do
-        if v == zoneID then
-            return true
-        end
-    end
-
-    return false
-end
-
-local function removeLevelCap(player)
-    local zoneID   = player:getZoneID()
-
-    -- Prevent removing level restriction inside intentionally capped areas
-    if isLevelCappedZone(zoneID) then
-        return
-    end
-
-    local alliance = player:getAlliance()
-
-    for i = 1, #alliance do
-        if alliance[i]:getZoneID() == zoneID then
-            alliance[i]:delStatusEffect(xi.effect.LEVEL_RESTRICTION)
-
-            local pet = alliance[i]:getPet()
-
-            if pet ~= nil then
-                pet:delStatusEffect(xi.effect.LEVEL_RESTRICTION)
-            end
-        end
-    end
-end
-
-local function allPlayers(player, func)
-    local zoneID   = player:getZoneID()
-    local alliance = player:getAlliance()
-
-    for i = 1, #alliance do
-        if
-            alliance[i]:isPC() and
-            alliance[i]:getZoneID() == zoneID
-        then
-            func(alliance[i])
-        end
-    end
-end
-
-local function applyLevelCap(player, params)
-    if
-        params ~= nil and
-        params.levelCap ~= nil
-    then
-        local zoneID   = player:getZoneID()
-        local alliance = player:getAlliance()
-
-        for i = 1, #alliance do
-            if alliance[i]:getZoneID() == zoneID then
-                setEncounter(alliance[i], params)
-
-                local pet = alliance[i]:getPet()
-
-                if pet ~= nil then
-                    setEncounter(pet, params)
-                end
-            end
-        end
-    end
-end
-
-local function spawnMob(player, npc, entities, mobName, params)
-    local zone     = player:getZone()
-    local zoneName = player:getZoneName()
-    local mobInfo  = getEntityInfo(entities[zoneName], mobName)
-    local result   = zone:queryEntitiesByName("DE_" .. mobName)
-
-    for _, mob in pairs(result) do
-        if mob ~= nil and not mob:isAlive() then
-            if
-                params ~= nil and
-                params.setPos ~= nil
-            then
-                mob:setSpawn(params.setPos.x, params.setPos.y, params.setPos.z, params.setPos.rotation)
-            else
-                mob:setSpawn(mobInfo.pos[1], mobInfo.pos[2], mobInfo.pos[3], mobInfo.pos[4])
-            end
-
-            if mobInfo.dropID then
-                mob:setDropID(mobInfo.dropID)
-            else
-                mob:setDropID(0)
-            end
-
-            local spawnLevel = mobInfo.level
-
-            if
-                params ~= nil and
-                params.scaleVar ~= nil
-            then
-                local scaling = player:getCharVar(params.scaleVar)
-                spawnLevel    = spawnLevel + scaling
-            end
-
-            mob:spawn()
-            mob:setMobLevel(spawnLevel)
-            mob:updateClaim(player)
-            mob:setLocalVar("NO_CASKET", 1)
-
-
-            -- Apply enmity to party, preventing despawn on spawner death
-            local alliance = player:getAlliance()
-
-            if
-                alliance ~= nil and
-                #alliance > 1
-            then
-                for _, member in pairs(alliance) do
-                    mob:addEnmity(member, 1, 0)
-                end
-            end
-
-            -- Quest mobs should not respawn
-            mob:setRespawnTime(0)
-            DisallowRespawn(mob:getID(), true)
-
-            if mobInfo.mods ~= nil then
-                for mod, value in pairs(mobInfo.mods) do
-                    mob:setMod(mod, value)
-                end
-            end
-
-            if mobInfo.effects ~= nil then
-                for effectID, effectTable in pairs(mobInfo.effects) do
-                    mob:addStatusEffect(effectID, unpack(effectTable))
-                end
-            end
-
-            -- Correct HP value based on mob params
-            mob:setHP(mob:getMaxHP())
-            mob:updateHealth()
-
-            if mobInfo.hp ~= nil then
-                local mobHP = mob:getMaxHP()
-                local hpp   = math.max(math.ceil((mobInfo.hp / mobHP) * 100) - 100, 0)
-                mob:addMod(xi.mod.HPP, hpp)
-                mob:updateHealth()
-                mob:setHP(mob:getMaxHP())
-            end
-
-            if params ~= nil then
-                if params.levelCap ~= nil then
-                    -- Draw-In was moved to Lua mixin:
-                    -- https://github.com/LandSandBoat/server/pull/6566
-                    g_mixins.draw_in(mob)
-                    setEncounter(mob, params)
-                end
-
-                if params.nextPos ~= nil then
-                    local pos = params.nextPos[math.random(1, #params.nextPos)]
-                    npc:setPos(unpack(pos))
-                end
-            end
-        end
-    end
-end
-
-local function mobsAlive(player, mobName)
-    local zone   = player:getZone()
-    local result = zone:queryEntitiesByName("DE_" .. mobName)
-
-    for _, mob in pairs(result) do
-        if
-            mob ~= nil and
-            mob:isAlive()
-        then
-            player:sys("An encounter is already in progress.")
-            return true
-        end
-    end
-
-    return false
-end
-
-local function delaySpawn(player, npc, delay, mobs, entities, hideSpawner, params)
-    if type(mobs) == "table" then
-        for _, mobName in pairs(mobs) do
-            if mobsAlive(player, mobName) then
-                return false
-            end
-        end
-    else
-        if mobsAlive(player, mobs) then
-            return false
-        end
-    end
-
-    -- TODO: Can these be moved to checks?
-    if params ~= nil then
-        if
-            params.partySize ~= nil and
-            player:getPartySize() > params.partySize
-        then
-            player:sys("Your party is too large to begin this encounter.")
-            return false
-        end
-
-        if
-            params.job ~= nil and
-            player:getMainJob() ~= params.job
-        then
-            player:sys("Your job is incorrect for this encounter.")
-            return false
-        end
-    end
-
-    -- Only skip this if hideSpawner is false
-    if
-        ((params == nil or params.nextPos == nil) and
-        hideSpawner == nil) or
-        hideSpawner
-    then
-        hideNPC(npc)
-    end
-
-    applyLevelCap(player, params)
-
-    npc:timer(delay, function(npcArg)
-        if type(mobs) == "table" then
-            for _, mobName in pairs(mobs) do
-                spawnMob(player, npc, entities, mobName, params)
-            end
-        else
-            spawnMob(player, npc, entities, mobs, params)
-        end
-    end)
-
-    return true
-end
-
 LQS.menu = function(obj)
     return function(player, npc, tbl, var, step, entities)
         -- Prevent players opening menu while in dialog

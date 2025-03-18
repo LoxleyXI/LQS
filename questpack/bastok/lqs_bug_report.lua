@@ -110,6 +110,7 @@ LQS.add(m, {
                         "Adventurer, there is no time for these games.",
                         " Please get back to work.",
                     },
+                    accepted =
                     {
                         { emote = xi.emote.CLAP },
                         "Great work, adventurer. Keep it up.",
