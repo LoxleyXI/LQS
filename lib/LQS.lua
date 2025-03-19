@@ -49,6 +49,7 @@ LQS.MAIN_QUEST   = "MAIN_QUEST"
 LQS.SIDE_QUEST   = "SIDE_QUEST"
 LQS.NOTHING      = { { object = true }, "You see nothing out of the ordinary." }
 LQS.NOTHING_ELSE = { { object = true }, "There is nothing else to do here."    }
+LQS.LOCKED       = { { object = true }, "It's locked." }
 
 LQS.standardImmunities =
 {
@@ -1835,8 +1836,9 @@ LQS.defeat = function(params)
         allPlayers(player, function(member)
             -- Apply update for players on the current quest step
             if
-                member:getCharVar(var) == (step - 1) and
-                (check == nil or check(alliance[i]))
+                (params.step == nil or params.step == true) and
+                (member:getCharVar(var) == (step - 1) and
+                (check == nil or check(alliance[i])))
             then
                 -- Apply var changes only for flagged players
                 if
@@ -2191,7 +2193,7 @@ local getMobSteps = function(event, var, entity, steps, entities)
         end
 
         if entity.after ~= nil then
-            after(mob, player)
+            entity.after(mob, player)
         end
 
         if entity.delCap ~= nil then
