@@ -600,6 +600,39 @@ LQS.pickItem = function(items, mod)
     return item
 end
 
+LQS.lootPool = function(player, pools)
+    for _, pool in pairs(pools) do
+        local result = LQS.pickItem(pool)
+        local qty    = 1
+
+
+        if result[4] ~= nil then
+            qty = math.random(result[3], result[4])
+        elseif result[3] ~= nil then
+            qty = result[3]
+        end
+
+        if
+            result ~= nil and
+            result[2] ~= 0
+        then
+            npcUtil.giveItem(player, { { result[2], qty } })
+        end
+    end
+end
+
+LQS.randomNoRepeat = function(size, exclude)
+    local range = {}
+
+    for i = 1, size do
+        if i ~= exclude then
+            table.insert(range, i)
+        end
+    end
+
+    return range[math.random(1, #range)]
+end
+
 -----------------------------------
 -- Entity utils
 -----------------------------------
@@ -1649,7 +1682,7 @@ end
 -----------------------------------
 -- LQS.shop
 -----------------------------------
-local function simpleShop(player, npc, tbl, func, title, currentPage, param)
+LQS.simpleShop = function(player, npc, tbl, func, title, currentPage, param)
     local options  = {}
     local max      = 1
     local lastPage = math.floor((#tbl - 1) / 4)
@@ -1663,7 +1696,7 @@ local function simpleShop(player, npc, tbl, func, title, currentPage, param)
         table.insert(options, {
             "(Prev)",
             function(player)
-                simpleShop(player, npc, tbl, func, title, page - 1, param)
+                LQS.simpleShop(player, npc, tbl, func, title, page - 1, param)
             end,
         })
     end
@@ -1713,7 +1746,7 @@ local function simpleShop(player, npc, tbl, func, title, currentPage, param)
         table.insert(options, {
             "(Next)",
             function(player)
-                simpleShop(player, npc, tbl, func, title, page + 1, param)
+                LQS.simpleShop(player, npc, tbl, func, title, page + 1, param)
             end,
         })
     end
@@ -1783,7 +1816,7 @@ LQS.shop = function(obj)
             end
         end
 
-        simpleShop(player, npc, list, purchase, fmt(obj.title, balance))
+        LQS.simpleShop(player, npc, list, purchase, fmt(obj.title, balance))
     end
 end
 
