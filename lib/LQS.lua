@@ -821,7 +821,7 @@ local function spawnMob(player, npc, entities, mobName, params)
             mob:setMobLevel(spawnLevel)
             mob:updateClaim(player)
             mob:setLocalVar("NO_CASKET", 1)
-
+            mob:setCallForHelpBlocked(true)
 
             -- Apply enmity to party, preventing despawn on spawner death
             local alliance = player:getAlliance()
