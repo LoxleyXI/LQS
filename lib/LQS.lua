@@ -1486,9 +1486,9 @@ LQS.trade = function(obj)
                 end
 
                 player:timer(delay, function(playerArg)
-                    performTrade(obj, player, var, count)
-
-                    if obj.spawn ~= nil then
+                    if obj.spawn == nil then
+                        performTrade(obj, player, var, count)
+                    else
                         if obj.flag ~= nil then
                             player:setLocalVar(obj.flag, 1)
                         end
@@ -1512,6 +1512,8 @@ LQS.trade = function(obj)
                                 partySize    = obj.partySize,
                                 scaleVar     = obj.scaleVar,
                             }) then
+                                performTrade(obj, player, var, count)
+
                                 if obj.setVar ~= nil then
                                     for _, varInfo in pairs(obj.setVar) do
                                         player:setCharVar(varInfo[1], varInfo[2])
