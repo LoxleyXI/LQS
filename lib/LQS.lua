@@ -605,18 +605,20 @@ LQS.lootPool = function(player, pools)
         local result = LQS.pickItem(pool)
         local qty    = 1
 
+        if result == nil then
+            print(fmt("[LQS] pickItem returned a nil result in quest pool (Player: {}, Zone: {})", player:getName(), player:getZoneName()))
+        else
+            if result[4] ~= nil then
+                qty = math.random(result[3], result[4])
+            elseif result[3] ~= nil then
+                qty = result[3]
+            end
 
-        if result[4] ~= nil then
-            qty = math.random(result[3], result[4])
-        elseif result[3] ~= nil then
-            qty = result[3]
-        end
-
-        if
-            result ~= nil and
-            result[2] ~= 0
-        then
-            npcUtil.giveItem(player, { { result[2], qty } })
+            if result[2] == nil then
+                print(fmt("[LQS] pickItem returned a nil item ID in quest pool (Player: {}, Zone: {})", player:getName(), player:getZoneName()))
+            elseif result[2] ~= 0 then
+                npcUtil.giveItem(player, { { result[2], qty } })
+            end
         end
     end
 end
@@ -2166,7 +2168,11 @@ local getMobSteps = function(event, var, entity, steps, entities)
                 mob:setLocalVar("LOOT_ROLLED", 1)
 
                 for _, itemInfo in pairs(entity.loot) do
-                    player:addTreasure(itemInfo[2], mob, itemInfo[1])
+                    if itemInfo[2] == nil then
+                        print(fmt("[LQS] Missing item ID! Rolled loot is nil for {} (Player: {})", mob:getName(), player:getName()))
+                    elseif itemInfo[2] ~= 0 then
+                        player:addTreasure(itemInfo[2], mob, itemInfo[1])
+                    end
                 end
             end
 
@@ -2179,14 +2185,18 @@ local getMobSteps = function(event, var, entity, steps, entities)
                         for _ = 1, pool.quantity do
                             local result = LQS.pickItem(pool)
 
-                            if result[2] ~= 0 then
+                            if result[2] == nil then
+                                print(fmt("[LQS] Missing item ID! Rolled loot is nil for {} (Player: {})", mob:getName(), player:getName()))
+                            elseif result[2] ~= 0 then
                                 player:addTreasure(result[2], mob)
                             end
                         end
                     else
                         local result = LQS.pickItem(pool)
 
-                        if result[2] ~= 0 then
+                        if result[2] == nil then
+                            print(fmt("[LQS] Missing item ID! Rolled loot is nil for {} (Player: {})", mob:getName(), player:getName()))
+                        elseif result[2] ~= 0 then
                             player:addTreasure(result[2], mob)
                         end
                     end
