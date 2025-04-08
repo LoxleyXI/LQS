@@ -1492,7 +1492,10 @@ LQS.trade = function(obj)
                 end
 
                 player:timer(delay, function(playerArg)
-                    if obj.spawn == nil then
+                    if
+                        obj.spawn == nil or
+                        type(obj.spawn) == "string"
+                    then
                         performTrade(obj, player, var, count)
                     else
                         if obj.flag ~= nil then
