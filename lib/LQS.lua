@@ -1113,6 +1113,10 @@ local checkList =
     item = function(player, item)
         return player:hasItem(item)
     end,
+
+    ki = function(player, keyItem)
+        return player:hasKeyItem(keyItem)
+    end,
 }
 
 LQS.checks = function(tbl)
