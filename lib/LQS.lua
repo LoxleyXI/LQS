@@ -1139,6 +1139,13 @@ end
 LQS.dialog = function(obj)
     return function(player, npc, tbl, var, step, questName)
         -----------------------------------
+        -- Prevent players spamming dialog and duplicating rewards
+        -----------------------------------
+        if player:getLocalVar("[LQS]REWARD") > 0 then
+            return
+        end
+
+        -----------------------------------
         -- Player does not meet requirements
         -- Show default dialog or "fail" dialog
         -----------------------------------
