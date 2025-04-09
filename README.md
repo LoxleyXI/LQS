@@ -313,7 +313,7 @@ The shop utility presents players with an automatically paginated list and provi
 ```lua
 ["Entity Name"] = LQS.shop({
     var    = "[LQS]POINTS_NAME",
-    title  = "Puchase an item ({} points)",
+    title  = "Purchase an item ({} points)",
     dialog = { "Optional dialog here" },
     list   =
     {
