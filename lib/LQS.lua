@@ -58,6 +58,7 @@ LQS.standardImmunities =
     xi.immunity.LIGHT_SLEEP,
     xi.immunity.PETRIFY,
     xi.immunity.SILENCE,
+    xi.immunity.TERROR,
 }
 
 -- Rates
