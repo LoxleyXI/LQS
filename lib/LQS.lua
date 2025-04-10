@@ -1118,6 +1118,10 @@ local checkList =
     ki = function(player, keyItem)
         return player:hasKeyItem(keyItem)
     end,
+
+    skill = function(player, skillInfo)
+        return player:getCharSkillLevel(skillInfo[1]) >= skillInfo[2]
+    end,
 }
 
 LQS.checks = function(tbl)
