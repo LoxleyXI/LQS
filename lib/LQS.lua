@@ -2172,14 +2172,19 @@ local getMobSteps = function(event, var, entity, steps, entities)
             return
         end
 
-        if
-            entity.restore ~= nil and
-            player:isPC() and
-            optParams ~= nil and optParams.isKiller
-        then
-            player:setHP(player:getMaxHP())
-            player:setMP(player:getMaxMP())
-            player:setTP(3000)
+        if player:isPC() then
+            if
+                entity.restore ~= nil and
+                optParams ~= nil and optParams.isKiller
+            then
+                player:setHP(player:getMaxHP())
+                player:setMP(player:getMaxMP())
+                player:setTP(3000)
+            end
+
+            if entity.title ~= nil then
+                player:addTitle(entity.title)
+            end
         end
 
         if mob:getLocalVar("LOOT_ROLLED") == 0 then
