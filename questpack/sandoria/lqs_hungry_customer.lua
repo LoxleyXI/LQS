@@ -21,8 +21,8 @@
 -- !setvar [LQS]HUNGRY_CUSTOMER 0
 -- !setvar [LQS]HARE_MEAT 0
 -- Couquillard !pos 95.225 0.000, 118.159 230
--- !additem 4358 12
--- Rewards: 900g
+-- !additem 4358 3
+-- Rewards: 500g
 -----------------------------------
 local m = Module:new("lqs_hungry_customer")
 
@@ -32,10 +32,10 @@ local info =
     author   = "Loxley",
     var      = "[LQS]HUNGRY_CUSTOMER",
     tally    = "[LQS]HARE_MEAT",
-    required = { { 4358, 12 } }, -- Hare Meat x12
+    required = { { 4358, 3 } }, -- Hare Meat x3
     reward   =
     {
-        gil = 900,
+        gil = 500,
     },
 }
 
@@ -93,7 +93,7 @@ LQS.add(m, {
                 {
                     "One particular customer keeps eating all our hare meat!",
                     { entity = RumblingBelly, emote = xi.emote.LAUGH },
-                    " Fetch twelve hare meat and I'll reward you.",
+                    " Fetch three hare meat and I'll reward you.",
                 },
             })
         },
@@ -104,7 +104,7 @@ LQS.add(m, {
                     step  = false,
                     event =
                     {
-                        "Please fetch twelve hare meat and I'll reward you.",
+                        "Please three hare meat and I'll reward you.",
                     },
                 }),
                 onTrade = LQS.trade({
@@ -115,7 +115,7 @@ LQS.add(m, {
                     tally    = info.tally,
                     declined =
                     {
-                        "Please fetch twelve hare meat and I'll reward you.",
+                        "Please fetch three hare meat and I'll reward you.",
                     },
                     accepted =
                     {
