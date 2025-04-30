@@ -21,7 +21,7 @@
 -- !setvar [LQS]BUG_REPORT 0
 -- !setvar [LQS]INSECT_WINGS
 -- Bardus !pos 104.494 8.500 6.774 236
--- !additem 4358 12
+-- !additem 4358 4
 -- Rewards: 400g
 -----------------------------------
 -- !setvar [LQS]BUG_REPORT 1
@@ -34,10 +34,10 @@ local info =
     author   = "Loxley",
     var      = "[LQS]BUG_REPORT",
     tally    = "[LQS]INSECT_WINGS",
-    required = { { 846, 12 } },
+    required = { { 846, 4 } }, -- Insect Wing x4
     reward   =
     {
-        gil = 400,
+        gil = 300,
     },
 }
 
@@ -83,7 +83,7 @@ LQS.add(m, {
                     { delay = 1000 },
                     { emote = xi.emote.FUME },
                     "Go out there, squash as many bugs as you can find.",
-                    " Come back with twelve insect wings as proof.",
+                    " Come back with four insect wings as proof.",
                 },
             })
         },
@@ -96,7 +96,7 @@ LQS.add(m, {
                     {
                         { emote = xi.emote.FUME },
                         "Go out there, squash as many bugs as you can find.",
-                        " Come back with twelve insect wings as proof.",
+                        " Come back with four insect wings as proof.",
                     },
                 }),
                 onTrade = LQS.trade({
