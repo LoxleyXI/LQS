@@ -26,8 +26,8 @@
 -- Reward: 1500 gil
 -----------------------------------
 -- Erbelie       !pos -28.726 -4.152 59.257 241
--- !additem 938 3
--- Reward: 600 gil
+-- !additem 938 2
+-- Reward: 800 gil
 -----------------------------------
 -- !setvar [LQS]NECK_AND_NECK 5
 -----------------------------------
@@ -40,14 +40,14 @@ local info =
     author   = "Loxley",
     var      = "[LQS]NECK_AND_NECK",
     tally    = "[LQS]PAPAKA",
-    required = { { 938, 3 } }, -- Papaka Grass x3
+    required = { { 938, 2 } }, -- Papaka Grass x2
     reward   =
     {
         {
             gil = 1500,
         },
         {
-            gil = 600,
+            gil = 800,
         },
     },
 }
@@ -178,7 +178,7 @@ LQS.add(m, {
                 event  =
                 {
                     "A dhalmel's favorite treat is papaka grass.",
-                    " Collect three sprigs and I'll pay.",
+                    " Collect two sprigs and I'll pay.",
                 },
             })
         },
@@ -190,7 +190,7 @@ LQS.add(m, {
                     event =
                     {
                         "A dhalmel's favorite treat is papaka grass.",
-                        " Collect three sprigs and I'll pay.",
+                        " Collect two sprigs and I'll pay.",
                     },
                 }),
                 onTrade = LQS.trade({
@@ -202,7 +202,7 @@ LQS.add(m, {
                     declined =
                     {
                         "A dhalmel's favorite treat is papaka grass.",
-                        " Collect three sprigs and I'll pay.",
+                        " Collect two sprigs and I'll pay.",
                     },
                     accepted =
                     {
