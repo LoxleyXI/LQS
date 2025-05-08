@@ -2577,7 +2577,7 @@ LQS.add = function(source, tbl)
                 local dynamicEntity =
                 {
                     name        = entity.name,
-                    packetName  = entity.packetName,
+                    packetName  = entity.packetName or entity.name,
                     objtype     = entity.type or xi.objType.NPC,
                     namevis     = entity.namevis or 0,
                     entityFlags = entity.flags or 0,
