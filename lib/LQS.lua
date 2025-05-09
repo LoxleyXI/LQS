@@ -1695,10 +1695,24 @@ LQS.menu = function(obj)
             })
         end
 
-        player:customMenu({
-            title   = obj.title,
-            options = options,
-        })
+        local delay = 0
+
+        if obj.before ~= nil then
+            if type(obj.before) == "table" then
+                LQS.event(player, npc, obj.before)
+                delay = LQS.eventDelay(obj.before)
+            else
+                LQS.event(player, npc, { obj.before })
+                delay = LQS.eventDelay({ obj.before })
+            end
+        end
+
+        player:timer(delay, function()
+            player:customMenu({
+                title   = obj.title,
+                options = options,
+            })
+        end)
     end
 end
 
