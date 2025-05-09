@@ -1666,7 +1666,13 @@ LQS.menu = function(obj)
                             -- Optionally give item after dialog
                             if obj.options[i][3] ~= nil then
                                 if npcUtil.giveItem(player, obj.options[3]) then
-                                    player:setCharVar(var, step)
+
+                                    if
+                                        obj.step == nil or
+                                        obj.step
+                                    then
+                                        player:setCharVar(var, step)
+                                    end
 
                                     if obj.quest ~= nil then
                                         LQS.questAccepted(player, obj.quest, false)
@@ -1675,7 +1681,12 @@ LQS.menu = function(obj)
                                     end
                                 end
                             else
-                                player:setCharVar(var, step)
+                                if
+                                    obj.step == nil or
+                                    obj.step
+                                then
+                                    player:setCharVar(var, step)
+                                end
 
                                 if obj.quest ~= nil then
                                     if obj.finish ~= nil then
