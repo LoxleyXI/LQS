@@ -20,7 +20,7 @@
 -----------------------------------
 -- !setvar [LQS]EARTHEN_ECHOES 0
 -- Rumbling Valley !pos 28.255 7.000 -13.689 234
--- !additem 768 12
+-- !additem 768 60
 -- Reward: Scroll of Stoneskin
 -----------------------------------
 -- !setvar [LQS]EARTHEN_ECHOES 1
@@ -32,7 +32,7 @@ local info =
     name     = "Earthen Echoes",
     author   = "Loxley",
     var      = "[LQS]EARTHEN_ECHOES",
-    required = { { 768, 12 } },
+    required = { { 768, 60 } },
     reward   =
     {
         item = 4662, -- Scroll of Stoneskin
@@ -73,7 +73,7 @@ LQS.add(m, {
                 event =
                 {
                     "Can you hear it? The call of the dust and the voice of the wind?",
-                    " Bring me twelve flint stones and I'll tell you more.",
+                    " Bring me sixty flint stones and I'll tell you more.",
                 },
             })
         },
@@ -84,7 +84,7 @@ LQS.add(m, {
                     step  = false,
                     event =
                     {
-                        "Bring me twelve flint stones and I'll tell you more.",
+                        "Bring me sixty flint stones and I'll tell you more.",
                     },
                 }),
                 onTrade = LQS.trade({
@@ -94,7 +94,7 @@ LQS.add(m, {
                     step     = true,
                     declined =
                     {
-                        "Bring me twelve flint stones and I'll tell you more.",
+                        "Bring me sixty flint stones and I'll tell you more.",
                     },
                     accepted =
                     {
