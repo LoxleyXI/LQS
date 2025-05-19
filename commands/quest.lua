@@ -47,7 +47,7 @@ commandObj.onTrigger = function(player, str)
             return
         end
 
-        local status = player:getCharVar(questInfo.var) + 1
+        local status = player:getCharVar(questInfo.var)
 
         player:fmt("=== Quest info ===")
         player:fmt("{} (Author: {})", questInfo.name, questInfo.author)
@@ -56,23 +56,27 @@ commandObj.onTrigger = function(player, str)
             local str = "Reward: "
 
             for index, rewardInfo in pairs(questInfo.reward) do
-                if rewardInfo.item ~= nil then
-                    if type(rewardInfo.item) == "table" then
-                        str = str .. getItemName(rewardInfo.item[1][1]) .. " x" .. rewardInfo.item[1][2]
-                    else
-                        str = str .. getItemName(rewardInfo.item)
+                if type(rewardInfo) == "number" then
+                    str = str .. getItemName(rewardInfo)
+                else
+                    if rewardInfo.item ~= nil then
+                        if type(rewardInfo.item) == "table" then
+                            str = str .. getItemName(rewardInfo.item[1][1]) .. " x" .. rewardInfo.item[1][2]
+                        else
+                            str = str .. getItemName(rewardInfo.item)
+                        end
+
+                        if rewardInfo.augment ~= nil then
+                            str = str .. " (Augmented)"
+                        end
+
+                    elseif rewardInfo.gil ~= nil then
+                        str = str .. rewardInfo.gil .. " gil"
                     end
 
-                    if rewardInfo.augment ~= nil then
-                        str = str .. " (Augmented)"
+                    if index < #questInfo.reward then
+                        str = str .. ", "
                     end
-
-                elseif rewardInfo.gil ~= nil then
-                    str = str .. rewardInfo.gil .. " gil"
-                end
-
-                if index < #questInfo.reward then
-                    str = str .. ", "
                 end
             end
 
@@ -82,7 +86,11 @@ commandObj.onTrigger = function(player, str)
         local stepInfo = fmt("Current step: {}/{}", status, questInfo.finish)
 
         if status < questInfo.finish then
-            stepInfo = fmt("{} ({})", stepInfo, questInfo.hint[status])
+            if status <= 1 then
+                stepInfo = fmt("{} ({})", stepInfo, questInfo.hint[1])
+            else
+                stepInfo = fmt("{} ({})", stepInfo, questInfo.hint[status - 1])
+            end
         else
             stepInfo = fmt("{} (Completed)", stepInfo)
         end
@@ -97,7 +105,7 @@ commandObj.onTrigger = function(player, str)
     local completed = {}
 
     for questName, questInfo in pairs(LQS.registry) do
-        local status = player:getCharVar(questInfo.var) + 1
+        local status = player:getCharVar(questInfo.var)
 
         if status == 1 then
             table.insert(available, fmt("\129\158 {} ({}/{})", questInfo.name, status, questInfo.finish))

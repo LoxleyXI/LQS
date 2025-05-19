@@ -2494,18 +2494,20 @@ local function getStepHint(tbl, step, entityZone, entityType)
     local hint = "Unknown"
 
     for entityName, stepInfo in pairs(step) do
-        local detail = fmt("{} in {}", string.gsub(entityName, "_", " "), entityZone[entityName])
+        if entityName ~= "check" then
+            local detail = fmt("{} in {}", string.gsub(entityName, "_", " "), entityZone[entityName])
 
-        if entityType[entityName] == xi.objType.MOB then
-            return "Defeat " .. detail
-        else
-            if
-                type(step[entityName]) == "table" and
-                step[entityName].onTrade ~= nil
-            then
-                return "Trade " .. detail
+            if entityType[entityName] == xi.objType.MOB then
+                return "Defeat " .. detail
             else
-                hint = "Interact with " .. detail
+                if
+                    type(step[entityName]) == "table" and
+                    step[entityName].onTrade ~= nil
+                then
+                    return "Trade " .. detail
+                else
+                    hint = "Interact with " .. detail
+                end
             end
         end
     end
@@ -2519,23 +2521,25 @@ LQS.add = function(source, tbl)
     -----------------------------------
     local registryName = string.lower(tbl.info.name)
 
-    local entry =
-    {
-        name   = tbl.info.name,
-        author = tbl.info.author,
-        var    = tbl.info.var,
-        finish = #tbl.steps,
-        hint   = {},
-        reward = {},
-    }
+    if #tbl.steps > 1 then
+        local entry =
+        {
+            name   = tbl.info.name,
+            author = tbl.info.author,
+            var    = tbl.info.var,
+            finish = #tbl.steps - 1,
+            hint   = {},
+            reward = {},
+        }
 
-    -- Reuse existing overrides to prevent them being wiped on reload
-    if LQS.registry[registryName] ~= nil then
-        entry.check = LQS.registry[registryName].check
-        entry.after = LQS.registry[registryName].after
+        -- Reuse existing overrides to prevent them being wiped on reload
+        if LQS.registry[registryName] ~= nil then
+            entry.check = LQS.registry[registryName].check
+            entry.after = LQS.registry[registryName].after
+        end
+
+        LQS.registry[registryName] = entry
     end
-
-    LQS.registry[registryName] = entry
 
     local entityZone = {}
     local entityType = {}
