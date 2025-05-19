@@ -1,5 +1,5 @@
 -----------------------------------
--- Here be dragons (Lv40)
+-- Here Be Dragons (Lv40)
 -----------------------------------
 -- Copyright (c) 2025 LoxleyXI
 --
@@ -26,7 +26,7 @@ local m = Module:new("lqs_here_be_dragons")
 
 local info =
 {
-    name   = "Here be dragons",
+    name   = "Here Be Dragons",
     author = "Loxley",
     var    = "[LQS]HERE_BE_DRAGONS",
     reward = xi.item.DRAGON_CHRONICLES,
