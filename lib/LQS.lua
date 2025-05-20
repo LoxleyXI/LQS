@@ -2519,9 +2519,8 @@ LQS.add = function(source, tbl)
     -----------------------------------
     -- Create quest registry for !quest command
     -----------------------------------
-    local registryName = string.lower(tbl.info.name)
-
     if #tbl.steps > 1 then
+        local registryName = string.lower(tbl.info.name)
         local entry =
         {
             name   = tbl.info.name,
@@ -2539,32 +2538,32 @@ LQS.add = function(source, tbl)
         end
 
         LQS.registry[registryName] = entry
-    end
 
-    local entityZone = {}
-    local entityType = {}
+        local entityZone = {}
+        local entityType = {}
 
-    for zoneName, entityList in pairs(tbl.entities) do
-        for _, entityInfo in pairs(entityList) do
-            entityZone[entityInfo.name] = string.gsub(zoneName, "_", " ")
-            entityType[entityInfo.name] = entityInfo.type or xi.objType.NPC
-        end
-    end
-
-    for _, step in pairs(tbl.steps) do
-        table.insert(LQS.registry[registryName].hint, getStepHint(tbl, step, entityZone, entityType))
-    end
-
-    if tbl.info.reward ~= nil then
-        if
-            type(tbl.info.reward) == "table" and
-            tbl.info.reward[1] ~= nil
-        then
-            for _, rewardInfo in pairs(tbl.info.reward) do
-                table.insert(LQS.registry[registryName].reward, rewardInfo)
+        for zoneName, entityList in pairs(tbl.entities) do
+            for _, entityInfo in pairs(entityList) do
+                entityZone[entityInfo.name] = string.gsub(zoneName, "_", " ")
+                entityType[entityInfo.name] = entityInfo.type or xi.objType.NPC
             end
-        else
-            table.insert(LQS.registry[registryName].reward, tbl.info.reward)
+        end
+
+        for _, step in pairs(tbl.steps) do
+            table.insert(LQS.registry[registryName].hint, getStepHint(tbl, step, entityZone, entityType))
+        end
+
+        if tbl.info.reward ~= nil then
+            if
+                type(tbl.info.reward) == "table" and
+                tbl.info.reward[1] ~= nil
+            then
+                for _, rewardInfo in pairs(tbl.info.reward) do
+                    table.insert(LQS.registry[registryName].reward, rewardInfo)
+                end
+            else
+                table.insert(LQS.registry[registryName].reward, tbl.info.reward)
+            end
         end
     end
 
