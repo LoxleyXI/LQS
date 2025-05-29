@@ -21,8 +21,8 @@
 -- !setvar [LQS]RUSTLING_FEATHERS 0
 -- !setvar [LQS]YAGUDO_FEATHERS 0
 -- Puluki-Culuki !pos -226.082 -8.198 222.513 65
--- !additem 841 3
--- Rewards: 400g
+-- !additem 841 4
+-- Rewards: 150g
 -----------------------------------
 -- !setvar [LQS]RUSTLING_FEATHERS 1
 -----------------------------------
@@ -34,10 +34,10 @@ local info =
     author   = "Loxley",
     var      = "[LQS]RUSTLING_FEATHERS",
     tally    = "[LQS]YAGUDO_FEATHERS",
-    required = { { 841, 3 } }, -- Yagudo Feather x3
+    required = { { 841, 4 } }, -- Yagudo Feather x4
     reward  =
     {
-        gil = 400,
+        gil = 150,
     },
 }
 
@@ -80,7 +80,7 @@ LQS.add(m, {
                     { emote = xi.emote.THINK },
                     { delay = 2000 },
                     "We must push back the Yagudo for the safety of all Windurstians.",
-                    " Disruptaru them and present three yagudo feathers as proof.",
+                    " Disruptaru them and present four yagudo feathers as proof.",
                 },
             })
         },
@@ -93,7 +93,7 @@ LQS.add(m, {
                     {
                         "We must push back the Yagudo for the safety of all Windurstians.",
                         { emote = xi.emote.THINK },
-                        " Disruptaru them and present three yagudo feathers as proof.",
+                        " Disruptaru them and present four yagudo feathers as proof.",
                     },
                 }),
                 onTrade = LQS.trade({
