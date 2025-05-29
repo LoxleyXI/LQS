@@ -1122,6 +1122,10 @@ local checkList =
     skill = function(player, skillInfo)
         return player:getCharSkillLevel(skillInfo[1]) >= skillInfo[2]
     end,
+
+    quest = function(player, questInfo)
+        return player:hasCompletedQuest(questInfo[1], questInfo[2])
+    end,
 }
 
 LQS.checks = function(tbl)
