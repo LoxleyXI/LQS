@@ -31,7 +31,7 @@ If you found this module helpful, please consider kindly supporting my other wor
 **LQS now comes bundled with Questpack, providing 25+ new quests to experience.** Each quest features tastefully written dialog, appropriate to the game's setting and a variety of new rewards, including augmented items and repeatable gil rewards. These quests are designed to better balance the starting areas and provide meaningful content for new players to complete at the start of their journey.
 
 * San d'Oria **(7)**: Hatchet Job, Hungry Customer, In Sheep's Clothing, Rambling Around, Staying Afloat, Fleeing Daylight, Ring Around the Roses
-* Bastok **(7)**: Bird Search, Bug Report, Chasing Tails, Mining My Business, That's All Folks, Earthen Echoes, Running Rings Around
+* Bastok **(8)**: Bird Search, Bug Report, Chasing Tails, Mining My Business, That's All Folks, Earthen Echoes, Running Rings Around, Lode of Gil
 * Windurst **(7)**: Down to Earth, Neck and Neck, Only the Dose, Reaping Rewards, Rustling Feathers, Slowing Down, Give Me a Ring
 * Other Areas **(3)**: Head First, Here Be Dragons, Likely Tails
 * Aht Urhgan **(2)**: Insult to Gingery, Pecking Battles
