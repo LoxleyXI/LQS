@@ -1298,7 +1298,7 @@ local function performTrade(obj, player, var, count, increment, items, multiple)
             type(obj.reward) == "table" and
             obj.reward.after ~= nil
         then
-            local result = reward.after(player)
+            local result = obj.reward.after(player)
 
             if type(result) ~= "boolean" then
                 print("[LQS] Reward \"after\" function did not return a boolean value.")
