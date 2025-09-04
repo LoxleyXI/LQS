@@ -826,18 +826,6 @@ local function spawnMob(player, npc, entities, mobName, params)
             mob:setLocalVar("NO_CASKET", 1)
             mob:setCallForHelpBlocked(true)
 
-            -- Apply enmity to party, preventing despawn on spawner death
-            local alliance = player:getAlliance()
-
-            if
-                alliance ~= nil and
-                #alliance > 1
-            then
-                for _, member in pairs(alliance) do
-                    mob:addEnmity(member, 1, 0)
-                end
-            end
-
             -- Quest mobs should not respawn
             mob:setRespawnTime(0)
             DisallowRespawn(mob:getID(), true)
@@ -2360,6 +2348,7 @@ local function entitySetup(dynamicEntity, tbl, entity)
             mob:setMobMod(xi.mobMod.DETECTION, 0x08)
             mob:setMobMod(xi.mobMod.CHECK_AS_NM,  1)
             mob:setMobMod(xi.mobMod.CHARMABLE,    0)
+            mob:setMobMod(xi.mobMod.ALLI_HATE,   30)
 
             if entity.aeffect ~= nil then
                 mob:setMobMod(xi.mobMod.ADD_EFFECT, 1)
