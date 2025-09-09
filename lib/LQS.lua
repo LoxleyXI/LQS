@@ -336,6 +336,25 @@ local processTable = function(player, npc, prefix, row, delay)
             player:ceAnimate(player, player, row.animate, row.mode or 0)
         end
 
+    -- Send an action packet (visible to all players)
+    -- row.action = { actionID, animationID }
+    elseif
+        row.action ~= nil and
+        type(row.action) == "table"
+    then
+        if
+            row.entity ~= nil
+        then
+            local entity = getEntity(player, row.entity)
+            if row.target == "player" then
+                entity:injectActionPacket(player:getID(), row.action[1], row.action[2], 0, 0, 0, 0, 0)
+            else
+                entity:injectActionPacket(entity:getID(), row.action[1], row.action[2], 0, 0, 0, 0, 0)
+            end
+        else
+            player:injectActionPacket(player:getID(), row.action[1], row.action[2], 0, 0, 0, 0, 0)
+        end
+
     -- Emote NPC
     -- Sends an emote from the source NPC onto the target NPC or player
     elseif row.emote  ~= nil then
@@ -391,9 +410,9 @@ end
 
 -- Returns the total delay for event
 LQS.eventDelay = function(tbl)
-    if not tbl or #tbl == 0 then
+    if not tbl or type(tbl) ~= "table" or #tbl == 0 then
         print(string.format("[LQS] Event table for %s missing or empty.", npcName))
-        return
+        return 0
     end
 
     local total = 0
@@ -2576,8 +2595,8 @@ LQS.add = function(source, tbl)
 
                 if dynamicEntity ~= nil then
                     entitySetup(dynamicEntity, tbl, entityInfo)
-
-                    local zone = GetZone(xi.zone[string.upper(zoneName)])
+                    local underscoreZoneName = string.gsub(zoneName, "-", "_")
+                    local zone = GetZone(xi.zone[string.upper(underscoreZoneName)])
 
                     if zone ~= nil then
                         entityRefresh(dynamicEntity, zone, tbl, entityInfo)
