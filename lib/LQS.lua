@@ -813,7 +813,7 @@ local function spawnMob(player, npc, entities, mobName, params)
     local result   = zone:queryEntitiesByName("DE_" .. mobName)
 
     for _, mob in pairs(result) do
-        if mob ~= nil and not mob:isAlive() then
+        if mob ~= nil and not mob:isSpawned() then
             if
                 params ~= nil and
                 params.setPos ~= nil
@@ -890,16 +890,17 @@ local function spawnMob(player, npc, entities, mobName, params)
     end
 end
 
-local function mobsAlive(player, mobName)
+local function mobsSpawned(player, mobName)
     local zone   = player:getZone()
     local result = zone:queryEntitiesByName("DE_" .. mobName)
 
     for _, mob in pairs(result) do
         if
             mob ~= nil and
-            mob:isAlive()
+            mob:isSpawned()
         then
             player:sys("An encounter is already in progress.")
+            player:setLocalVar("[LQS]REWARD", 0)
             return true
         end
     end
@@ -910,12 +911,12 @@ end
 local function delaySpawn(player, npc, delay, mobs, entities, hideSpawner, params)
     if type(mobs) == "table" then
         for _, mobName in pairs(mobs) do
-            if mobsAlive(player, mobName) then
+            if mobsSpawned(player, mobName) then
                 return false
             end
         end
     else
-        if mobsAlive(player, mobs) then
+        if mobsSpawned(player, mobs) then
             return false
         end
     end
@@ -1107,11 +1108,11 @@ local checkList =
     end,
 
     timeout = function(player, variable)
-        return os.time() < player:getCharVar(variable)
+        return GetSystemTime() < player:getCharVar(variable)
     end,
 
     cooldown = function(player, variable)
-        return os.time() > player:getCharVar(variable)
+        return GetSystemTime() > player:getCharVar(variable)
     end,
 
     bool = function(player, val)
@@ -1888,7 +1889,7 @@ local function awardGive(player, var, reward)
     -- Make sure player can't claim reward more than once every 24 hours
     if player:getCharVar(var) == 0 then
         print(string.format("[HELPER] %s has claimed a reward for helping with %s.", player:getName(), var))
-        player:setCharVar(var, 1, getMidnight())
+        player:setCharVar(var, 1, JstMidnight())
 
         -- Increment var for helper points and leaderboards
         player:incrementCharVar("[HELPER]POINTS", 1)
@@ -1949,7 +1950,7 @@ LQS.defeat = function(params)
             -- Apply optional cooldown or clear local var for all players
             if params ~= nil then
                 if params.cooldown ~= nil then
-                    member:setCharVar(params.cooldown, 1, getMidnight())
+                    member:setCharVar(params.cooldown, 1, JstMidnight())
                 end
 
                 if params.setLocal ~= nil then
@@ -1991,7 +1992,7 @@ LQS.defeat = function(params)
                 end
 
                 if params.cooldown ~= nil then
-                    member:setCharVar(params.cooldown, 1, getMidnight())
+                    member:setCharVar(params.cooldown, 1, JstMidnight())
                 end
 
                 if params.func ~= nil then
@@ -2358,6 +2359,10 @@ local function entitySetup(dynamicEntity, tbl, entity)
             dynamicEntity.groupZoneId = entity.base[1]
         end
 
+        if entity.mixins ~= nil then
+            dynamicEntity.mixins = entity.mixins
+        end
+
         dynamicEntity.onMobDeath     = getMobSteps("onMobDeath", tbl.info.var, entity, tbl.steps, tbl.entities)
         dynamicEntity.onMobDisengage = function(mob)
             DespawnMob(mob:getID())
@@ -2462,6 +2467,22 @@ local function entityAfter(de, entity)
         entity.dialog ~= nil
     then
         printf("[LQS] %s is a mob but has been assigned dialog.", entity.name)
+    end
+
+    -- entity.listener syntax:
+    -- { 'ENGAGE', 'NameOfEngageListener', function }
+    if
+        entity.listeners == nil and
+        entity.listener ~= nil
+    then
+        entity.listeners = { entity.listener }
+    end
+
+    if entity.listeners ~= nil then
+        for _, listener in pairs(entity.listeners) do
+            de:removeListener(listener[2])
+            de:addListener(listener[1], listener[2], listener[3])
+        end
     end
 end
 
